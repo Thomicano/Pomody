@@ -13,7 +13,7 @@ export default function App() {
   };
   return (
     // 1. Contenedor principal: Ocupa el 100% del ancho (w-full) y alto de la pantalla (h-screen) sin bordes
-    <div className="relative w-full h-screen overflow-hidden font-sans antialiased text-white">
+    <div className="relative w-full h-screen overflow-hidden font-sans antialiased text-white ">
 
       {/* 2. Fondo a pantalla completa */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500">
@@ -21,7 +21,7 @@ export default function App() {
       </div>
       {/* Flash de Feedback Global */}
       <div 
-        className={`absolute inset-0 z-10 transition-opacity duration-300 ease-out pointer-events-none
+        className={`absolute inset-0 z-[9999] pointer-events-none transition-opacity duration-500
           ${flashColor === 'study' ? 'bg-white opacity-20' : ''}
           ${flashColor === 'break' ? 'bg-cyan-300 opacity-20' : ''}
           ${flashColor === null ? 'opacity-0' : ''}

@@ -94,7 +94,7 @@ const playCrystalPing = () => {
   }
 }
 
-export default function PomodoroTimer() {
+export default function PomodoroTimer({ onCycleComplete }: { onCycleComplete: (mode: 'study' | 'break') => void }) {
   const savedSession = getSavedSession();
   const defaultProfile = (savedSession.profile as StudentProfile) || "general";
   const initialMethodId = savedSession.methodId || recommendMethod(defaultProfile);
@@ -156,30 +156,40 @@ export default function PomodoroTimer() {
     };
   }, [isActive, timeLeft, isFinished]);
 
-  // Transiciones 100% Automáticas
-  useEffect(() => {
-    let finishTimeout: number | undefined;
+  /// Transiciones 100% Automáticas
+useEffect(() => {
+  let finishTimeout: number | undefined;
 
-    if (isFinished) {
-      finishTimeout = window.setTimeout(() => {
-        if (!isBreak) {
-          // Entra en Descanso
-          setIsBreak(true);
-          setTimeLeft(activeMethod.breakDuration);
-          setCycleCount(c => c + 1);
-        } else {
-          // Terminar descanso, reanuda Estudio
-          setIsBreak(false);
-          setTimeLeft(activeMethod.studyDuration);
-        }
-        setIsFinished(false); 
-      }, 1500); // Dar 1.5s para la animación
-    }
+  if (isFinished) {
+    finishTimeout = window.setTimeout(() => {
+      if (!isBreak) {
+        // --- AQUÍ: ENTRA EN DESCANSO ---
+        setIsBreak(true);
+        setTimeLeft(activeMethod.breakDuration);
+        setCycleCount(c => c + 1);
 
-    return () => {
-      if (finishTimeout) window.clearTimeout(finishTimeout);
-    };
-  }, [isFinished, isBreak, activeMethod]);
+        // ¡SEÑAL PARA EL FLASH DE DESCANSO!
+        onCycleComplete('break'); 
+
+      } else {
+        // --- AQUÍ: TERMINA DESCANSO, VUELVE A ESTUDIO ---
+        setIsBreak(false);
+        setTimeLeft(activeMethod.studyDuration);
+
+        // ¡SEÑAL PARA EL FLASH DE ESTUDIO!
+        onCycleComplete('study');
+      }
+      
+      setIsFinished(false); 
+      // Opcional: Si quieres que empiece solo el siguiente ciclo:
+      // setIsActive(true); 
+    }, 1500); // Esos 1.5s de gracia para la animación
+  }
+
+  return () => {
+    if (finishTimeout) window.clearTimeout(finishTimeout);
+  };
+}, [isFinished, isBreak, activeMethod, onCycleComplete]); // Agregamos onCycleComplete al array de dependencias
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -214,36 +224,27 @@ export default function PomodoroTimer() {
   return (
     <div className="flex flex-col items-center justify-center font-sans w-full h-full relative z-50">
       
-      {/* 1. Feedback Sensorial (Estilos CSS Injectados) */}
-      <style>{`
-        @keyframes subtle-shake {
-          0%, 100% { transform: translateX(0); }
-          20% { transform: translateX(-10px); }
-          40% { transform: translateX(10px); }
-          60% { transform: translateX(-5px); }
-          80% { transform: translateX(5px); }
-        }
-        .animate-shake {
-          animation: subtle-shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-        }
-        
-        @keyframes full-screen-flash {
-          0% { opacity: 0.5; }
-          100% { opacity: 0; }
-        }
-        .animate-flash {
-          animation: full-screen-flash 0.6s ease-out forwards;
-        }
-      `}</style>
-
-      {/* 1. Destello de Color (The Flash) Absoluto en toda la pantalla */}
-      {isFinished && (
-        <div 
-          className={`fixed inset-0 z-[100] pointer-events-none animate-flash ${
-            !isBreak ? 'bg-cyan-300' : 'bg-white'
-          }`} 
-        />
-      )}
+        {/* 1. Feedback Sensorial (Estilos CSS Injectados) */}
+        <style>{`
+          @keyframes subtle-shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-5px); }
+            80% { transform: translateX(5px); }
+          }
+          .animate-shake {
+            animation: subtle-shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+          }
+          
+          @keyframes full-screen-flash {
+            0% { opacity: 0.5; }
+            100% { opacity: 0; }
+          }
+          .animate-flash {
+            animation: full-screen-flash 0.6s ease-out forwards;
+          }
+        `}</style>
 
       {/* Target Selector de Perfil IA Funcional */}
       <div className="absolute top-4 right-4 flex items-center gap-2 z-50 opacity-50 hover:opacity-100 transition-opacity">
