@@ -16,8 +16,8 @@ const STUDY_METHODS: Record<string, StudyMethod> = {
   pomodoro: {
     id: "pomodoro",
     name: "Pomodoro",
-    studyDuration: 0.1 * 60,
-    breakDuration: 5 * 60,
+    studyDuration: 0.1 * 60, // Mantenido corto para testing, reemplaza por 25*60 luego
+    breakDuration: 0.1 * 60,
     recommendedFor: ["secundaria"],
     description: "Perfecto para construir hábito de estudio",
   },
@@ -46,54 +46,87 @@ function recommendMethod(profile: string): string {
   return "pomodoro"; // fallback
 }
 
-// Helper para inicializar estado desde localStorage
-function getSavedState() {
-  const saved = localStorage.getItem("pomodoroState");
+// ==========================================
+// 2. Preparación para Persistencia (Auth Ready)
+// ==========================================
+interface SessionData {
+  userId?: string;
+  methodId: string;
+  profile: StudentProfile;
+  cycleCount: number;
+  lastUpdated: string;
+}
+
+const saveSessionData = async (data: SessionData) => {
+  try {
+    // Almacenamiento local temporal / offline
+    localStorage.setItem("pomodoro_session", JSON.stringify(data));
+    
+    // Auth-Ready: Si el usuario está logueado, sincroniza con DB. Preparado para Supabase.
+    if (data.userId) {
+      // await supabase.from('study_sessions').upsert([data])
+      console.log("Sesión enviada a Supabase para el usuario", data.userId);
+    }
+  } catch(e) {
+    console.warn("Fallo al guardar sesión", e);
+  }
+}
+
+function getSavedSession(): Partial<SessionData> {
+  const saved = localStorage.getItem("pomodoro_session");
   if (saved) {
     try {
-      const parsed = JSON.parse(saved);
-      return {
-        methodId: parsed.methodId || null,
-        profile: parsed.profile || "general",
-        isBreak: parsed.isBreak ?? false,
-      };
+      return JSON.parse(saved);
     } catch(e) {}
   }
-  return { methodId: null, profile: "general", isBreak: false };
+  return {};
+}
+
+// 1. Audio Notification Factory
+const playCrystalPing = () => {
+  try {
+    // Ping placeholder cristalino (Se puede cambiar por un archivo "/crystal.mp3" dentro de /public)
+    const audio = new Audio('https://actions.google.com/sounds/v1/water/droplet_2.ogg');
+    audio.volume = 0.6;
+    audio.play();
+  } catch (error) {
+    console.warn("Crystal Ping failed or autoplay blocked", error);
+  }
 }
 
 export default function PomodoroTimer() {
-  const savedState = getSavedState();
-  const defaultProfile = savedState.profile as StudentProfile;
-  
-  // Si no hay método guardado manualmente, elegimos el recomendado
-  const initialMethodId = savedState.methodId || recommendMethod(defaultProfile);
+  const savedSession = getSavedSession();
+  const defaultProfile = (savedSession.profile as StudentProfile) || "general";
+  const initialMethodId = savedSession.methodId || recommendMethod(defaultProfile);
+  const initialCycleCount = savedSession.cycleCount || 0;
 
   const [profile, setProfile] = useState<StudentProfile>(defaultProfile);
   const [methodId, setMethodId] = useState<string>(initialMethodId);
-  const [isBreak, setIsBreak] = useState<boolean>(savedState.isBreak);
+  const [isBreak, setIsBreak] = useState<boolean>(false);
   
   const activeMethod = STUDY_METHODS[methodId] || STUDY_METHODS["pomodoro"];
 
-  // El tiempo inicial depende del modo elegido o restaurado
   const initTime = isBreak ? activeMethod.breakDuration : activeMethod.studyDuration;
   const [timeLeft, setTimeLeft] = useState(initTime);
 
   const [isActive, setIsActive] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const [cycleCount, setCycleCount] = useState(0);
+  const [cycleCount, setCycleCount] = useState(initialCycleCount);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Guardar contexto en formato persistente
+  // Sync data whenever critical states change (Auth-Ready Save)
   useEffect(() => {
-    localStorage.setItem("pomodoroState", JSON.stringify({
-      methodId, profile, isBreak
-    }));
-  }, [methodId, profile, isBreak]);
+    saveSessionData({
+      userId: undefined, // Sustituir luego: const { user } = useAuth();
+      methodId,
+      profile,
+      cycleCount,
+      lastUpdated: new Date().toISOString()
+    });
+  }, [methodId, profile, cycleCount]);
 
-  // Selección manual
   const handleModeSelect = (newMethodId: string) => {
     setMethodId(newMethodId);
     setIsBreak(false);
@@ -103,7 +136,7 @@ export default function PomodoroTimer() {
     setIsMenuOpen(false);
   };
 
-  // Motor principal del temporizador
+  // 3. Motor principal del temporizador
   useEffect(() => {
     let interval: number | undefined;
 
@@ -112,7 +145,10 @@ export default function PomodoroTimer() {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
     } else if (isActive && timeLeft === 0 && !isFinished) {
-      setIsFinished(true); // Activa fase de animación sin apagar isActive
+      // Activa fase de animación ininterrumpida
+      setIsFinished(true); 
+      // Play Feedback de Sonido Sensorial
+      playCrystalPing();
     }
 
     return () => {
@@ -120,25 +156,24 @@ export default function PomodoroTimer() {
     };
   }, [isActive, timeLeft, isFinished]);
 
-  // Motor de transición inteligente (Ciclos Automáticos)
+  // Transiciones 100% Automáticas
   useEffect(() => {
     let finishTimeout: number | undefined;
 
     if (isFinished) {
       finishTimeout = window.setTimeout(() => {
         if (!isBreak) {
-          // Iniciar Descanso
+          // Entra en Descanso
           setIsBreak(true);
           setTimeLeft(activeMethod.breakDuration);
           setCycleCount(c => c + 1);
         } else {
-          // Terminar descanso, nuevo estudio
+          // Terminar descanso, reanuda Estudio
           setIsBreak(false);
           setTimeLeft(activeMethod.studyDuration);
         }
         setIsFinished(false); 
-        // isActive sigue siendo true! El siguiente ciclo arrancará inmediatamente tras la animación.
-      }, 1500);
+      }, 1500); // Dar 1.5s para la animación
     }
 
     return () => {
@@ -146,7 +181,6 @@ export default function PomodoroTimer() {
     };
   }, [isFinished, isBreak, activeMethod]);
 
-  // Gestor del menú flotante
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -173,7 +207,6 @@ export default function PomodoroTimer() {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - progress);
 
-  // Variables Dinámicas Requeridas para UX Visual
   const strokeColorClass = isBreak ? "stroke-cyan-300/80" : "stroke-white";
   const textColorClass = isBreak ? "text-cyan-50/90" : "text-white/90";
   const ringBgClass = isBreak ? "stroke-cyan-900/40" : "stroke-white/5";
@@ -181,6 +214,37 @@ export default function PomodoroTimer() {
   return (
     <div className="flex flex-col items-center justify-center font-sans w-full h-full relative">
       
+      {/* 1. Feedback Sensorial (Estilos CSS Injectados) */}
+      <style>{`
+        @keyframes subtle-shake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-10px); }
+          40% { transform: translateX(10px); }
+          60% { transform: translateX(-5px); }
+          80% { transform: translateX(5px); }
+        }
+        .animate-shake {
+          animation: subtle-shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
+        
+        @keyframes full-screen-flash {
+          0% { opacity: 0.5; }
+          100% { opacity: 0; }
+        }
+        .animate-flash {
+          animation: full-screen-flash 0.6s ease-out forwards;
+        }
+      `}</style>
+
+      {/* 1. Destello de Color (The Flash) Absoluto en toda la pantalla */}
+      {isFinished && (
+        <div 
+          className={`fixed inset-0 z-[100] pointer-events-none animate-flash ${
+            !isBreak ? 'bg-cyan-300' : 'bg-white'
+          }`} 
+        />
+      )}
+
       {/* Target Selector de Perfil IA Funcional */}
       <div className="absolute top-4 right-4 flex items-center gap-2 z-50 opacity-50 hover:opacity-100 transition-opacity">
         <label className="text-[9px] text-white/60 uppercase tracking-widest hidden sm:block">Perfil Estudiante:</label>
@@ -189,7 +253,6 @@ export default function PomodoroTimer() {
           onChange={(e) => {
             const p = e.target.value as StudentProfile;
             setProfile(p);
-            // Recomendar inmediatamente si no está activo y cambiamos perfil
             if (!isActive) {
               const recommended = recommendMethod(p);
               if (recommended !== methodId) {
@@ -243,8 +306,8 @@ export default function PomodoroTimer() {
         )}
       </div>
 
-      {/* Timer Display */}
-      <div className="relative w-[320px] h-[320px] flex items-center justify-center mb-10">
+      {/* Timer Display (Con animación de Shake integrada) */}
+      <div className={`relative w-[320px] h-[320px] flex items-center justify-center mb-10 ${isFinished ? 'animate-shake' : ''}`}>
         <svg 
           className="absolute w-full h-full transform -rotate-90 pointer-events-none overflow-visible" 
           viewBox="0 0 320 320"
