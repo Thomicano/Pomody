@@ -1,10 +1,10 @@
-import DigitalClock from './components/DigitalClock';
-
+import DigitalClock from "@/components/DigitalClock";
+import PomodoroTimer from "@/components/PomodoroTimer";
 export default function App() {
   return (
     // 1. Contenedor principal: Ocupa el 100% del ancho (w-full) y alto de la pantalla (h-screen) sin bordes
     <div className="relative w-full h-screen overflow-hidden">
-      
+
       {/* 2. Fondo a pantalla completa */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500">
         <div className="absolute inset-0 bg-gradient-radial from-blue-400/30 to-blue-900/10 opacity-60"></div>
@@ -12,7 +12,7 @@ export default function App() {
 
       {/* 3. Contenido de la aplicación */}
       <div className="relative z-10 w-full h-full">
-        
+
         {/* Reproductor multimedia - Arriba al centro */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 w-[400px] h-[60px] bg-black/70 backdrop-blur-md rounded-xl border border-white/10 flex items-center justify-center opacity-50">
           <span className="text-white/50 text-xs">Reproductor</span>
@@ -25,8 +25,8 @@ export default function App() {
         </div>
 
         {/* Temporizador Pomodoro - A la derecha */}
-        <div className="absolute top-1/2 right-12 -translate-y-1/2 w-[350px] h-[400px] bg-white rounded-xl shadow-2xl p-8 opacity-50">
-          <span className="text-black/50 text-xs">Pomodoro</span>
+        <div className="absolute top-1/2 right-24 -translate-y-1/2">
+          <PomodoroTimer />
         </div>
 
         {/* Notas adhesivas - Abajo al centro */}
