@@ -42,7 +42,7 @@ export default function App() {
         </div>
 
         {/* Temporizador Pomodoro - A la derecha */}
-        <div className="absolute top-1/2 right-24 -translate-y-1/2">
+        <div className="absolute top-1/2 right-24 -translate-y-1/2 z-50">
           <PomodoroTimer onCycleComplete={triggerFlash} />
         </div>
 

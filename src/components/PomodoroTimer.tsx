@@ -94,11 +94,7 @@ const playCrystalPing = () => {
   }
 }
 
-export interface PomodoroProps { 
-  onCycleComplete: (color: 'study' | 'break') => void; 
-}
-
-export default function PomodoroTimer({ onCycleComplete }: PomodoroProps) {
+export default function PomodoroTimer() {
   const savedSession = getSavedSession();
   const defaultProfile = (savedSession.profile as StudentProfile) || "general";
   const initialMethodId = savedSession.methodId || recommendMethod(defaultProfile);
@@ -153,10 +149,6 @@ export default function PomodoroTimer({ onCycleComplete }: PomodoroProps) {
       setIsFinished(true); 
       // Play Feedback de Sonido Sensorial
       playCrystalPing();
-      // Disparar destello global en App.tsx (si fue provisto)
-      if (onCycleComplete) {
-        onCycleComplete(!isBreak ? 'break' : 'study');
-      }
     }
 
     return () => {
@@ -220,7 +212,7 @@ export default function PomodoroTimer({ onCycleComplete }: PomodoroProps) {
   const ringBgClass = isBreak ? "stroke-cyan-900/40" : "stroke-white/5";
 
   return (
-    <div className="flex flex-col items-center justify-center font-sans w-full h-full relative">
+    <div className="flex flex-col items-center justify-center font-sans w-full h-full relative z-50">
       
       {/* 1. Feedback Sensorial (Estilos CSS Injectados) */}
       <style>{`
@@ -243,6 +235,15 @@ export default function PomodoroTimer({ onCycleComplete }: PomodoroProps) {
           animation: full-screen-flash 0.6s ease-out forwards;
         }
       `}</style>
+
+      {/* 1. Destello de Color (The Flash) Absoluto en toda la pantalla */}
+      {isFinished && (
+        <div 
+          className={`fixed inset-0 z-[100] pointer-events-none animate-flash ${
+            !isBreak ? 'bg-cyan-300' : 'bg-white'
+          }`} 
+        />
+      )}
 
       {/* Target Selector de Perfil IA Funcional */}
       <div className="absolute top-4 right-4 flex items-center gap-2 z-50 opacity-50 hover:opacity-100 transition-opacity">
@@ -269,10 +270,11 @@ export default function PomodoroTimer({ onCycleComplete }: PomodoroProps) {
       </div>
 
       {/* Menu Principal de Método */}
-      <div className="relative mb-12 z-20" ref={menuRef}>
+      <div className="relative mb-12 z-50" ref={menuRef}>
         <button 
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className={`flex items-center gap-2 transition-colors uppercase text-[10px] font-medium tracking-[0.2em] ${isBreak ? 'text-cyan-300 pointer-events-none' : 'text-white/60 hover:text-white/90'}`}
+          type="button"
+          onClick={() => !isBreak && setIsMenuOpen(!isMenuOpen)}
+          className={`flex items-center gap-2 transition-colors uppercase text-[10px] font-medium tracking-[0.2em] ${isBreak ? 'text-cyan-300 opacity-80 cursor-default' : 'text-white/60 hover:text-white/90'}`}
         >
           {isBreak ? (
             <span className="tracking-[0.3em] font-light">RELAX</span>

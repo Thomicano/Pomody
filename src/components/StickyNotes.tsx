@@ -85,10 +85,10 @@ export default function StickyNotes() {
   if (!isLoaded) return null;
 
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-end relative z-30 pointer-events-none">
+    <div className="w-full h-fit flex flex-col items-center justify-end relative z-30 pointer-events-none pb-12">
       
       {/* Container flex para alinear notas horizontalmente en la parte inferior */}
-      <div className="flex flex-wrap justify-center items-end gap-x-8 gap-y-12 pb-8 pointer-events-auto">
+      <div className="flex flex-wrap justify-center items-end gap-x-8 gap-y-12 pointer-events-auto">
         {notes.map((note) => (
           <StickyNote 
             key={note.id} 
