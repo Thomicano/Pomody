@@ -94,7 +94,11 @@ const playCrystalPing = () => {
   }
 }
 
-export default function PomodoroTimer() {
+export interface PomodoroProps { 
+  onCycleComplete: (color: 'study' | 'break') => void; 
+}
+
+export default function PomodoroTimer({ onCycleComplete }: PomodoroProps) {
   const savedSession = getSavedSession();
   const defaultProfile = (savedSession.profile as StudentProfile) || "general";
   const initialMethodId = savedSession.methodId || recommendMethod(defaultProfile);
@@ -149,6 +153,10 @@ export default function PomodoroTimer() {
       setIsFinished(true); 
       // Play Feedback de Sonido Sensorial
       playCrystalPing();
+      // Disparar destello global en App.tsx (si fue provisto)
+      if (onCycleComplete) {
+        onCycleComplete(!isBreak ? 'break' : 'study');
+      }
     }
 
     return () => {
@@ -235,15 +243,6 @@ export default function PomodoroTimer() {
           animation: full-screen-flash 0.6s ease-out forwards;
         }
       `}</style>
-
-      {/* 1. Destello de Color (The Flash) Absoluto en toda la pantalla */}
-      {isFinished && (
-        <div 
-          className={`fixed inset-0 z-[100] pointer-events-none animate-flash ${
-            !isBreak ? 'bg-cyan-300' : 'bg-white'
-          }`} 
-        />
-      )}
 
       {/* Target Selector de Perfil IA Funcional */}
       <div className="absolute top-4 right-4 flex items-center gap-2 z-50 opacity-50 hover:opacity-100 transition-opacity">

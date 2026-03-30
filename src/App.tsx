@@ -1,18 +1,35 @@
+import { useState } from 'react';
 import DigitalClock from "@/components/DigitalClock";
 import PomodoroTimer from "@/components/PomodoroTimer";
+import StickyNotes from "@/components/StickyNotes";
+
 export default function App() {
+  const [flashColor, setFlashColor] = useState<string | null>(null);
+  // Función para activar el flash desde cualquier componente
+  const triggerFlash = (color: 'study' | 'break') => {
+    setFlashColor(color);
+    // Desvanecer el flash después de 600ms
+    setTimeout(() => setFlashColor(null), 600);
+  };
   return (
     // 1. Contenedor principal: Ocupa el 100% del ancho (w-full) y alto de la pantalla (h-screen) sin bordes
-    <div className="relative w-full h-screen overflow-hidden">
+    <div className="relative w-full h-screen overflow-hidden font-sans antialiased text-white">
 
       {/* 2. Fondo a pantalla completa */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500">
         <div className="absolute inset-0 bg-gradient-radial from-blue-400/30 to-blue-900/10 opacity-60"></div>
       </div>
-
+      {/* Flash de Feedback Global */}
+      <div 
+        className={`absolute inset-0 z-10 transition-opacity duration-300 ease-out pointer-events-none
+          ${flashColor === 'study' ? 'bg-white opacity-20' : ''}
+          ${flashColor === 'break' ? 'bg-cyan-300 opacity-20' : ''}
+          ${flashColor === null ? 'opacity-0' : ''}
+        `}
+      />
       {/* 3. Contenido de la aplicación */}
       <div className="relative z-10 w-full h-full">
-
+      
         {/* Reproductor multimedia - Arriba al centro */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 w-[400px] h-[60px] bg-black/70 backdrop-blur-md rounded-xl border border-white/10 flex items-center justify-center opacity-50">
           <span className="text-white/50 text-xs">Reproductor</span>
@@ -26,14 +43,12 @@ export default function App() {
 
         {/* Temporizador Pomodoro - A la derecha */}
         <div className="absolute top-1/2 right-24 -translate-y-1/2">
-          <PomodoroTimer />
+          <PomodoroTimer onCycleComplete={triggerFlash} />
         </div>
 
-        {/* Notas adhesivas - Abajo al centro */}
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex gap-8 opacity-50">
-          <div className="w-[180px] h-[180px] bg-orange-100 rounded-sm shadow-xl rotate-[-3deg]"></div>
-          <div className="w-[180px] h-[180px] bg-amber-50 rounded-sm shadow-xl rotate-[1deg]"></div>
-          <div className="w-[180px] h-[180px] bg-slate-100 rounded-sm shadow-xl rotate-[4deg]"></div>
+        {/* Notas adhesivas - Footer / Centro */}
+        <div className="absolute bottom-8 left-0 w-full flex justify-center z-20">
+          <StickyNotes />
         </div>
 
         {/* Iconos de estado - Abajo a la derecha */}
