@@ -180,11 +180,12 @@ function StickyNote({
 
       {/* Cinta Adhesiva (The Tape) */}
       <div 
-        className={`absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 ${note.tapeColor} opacity-80 z-10 rotate-[-1deg] backdrop-blur-[2px]`}
+        className={`absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 opacity-80 z-10 rotate-[-1deg] backdrop-blur-[2px]`}
         style={{
           boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset, 0 2px 4px rgba(0,0,0,0.05)',
           borderTop: '1px solid rgba(255,255,255,0.4)',
           borderLeft: '1px solid rgba(255,255,255,0.2)',
+          backgroundColor: 'var(--primary-tint)'
         }}
       />
 

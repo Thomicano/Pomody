@@ -217,9 +217,7 @@ useEffect(() => {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - progress);
 
-  const strokeColorClass = isBreak ? "stroke-cyan-300/80" : "stroke-white";
-  const textColorClass = isBreak ? "text-cyan-50/90" : "text-white/90";
-  const ringBgClass = isBreak ? "stroke-cyan-900/40" : "stroke-white/5";
+  const textColorClass = isBreak ? "text-white" : "text-white/90";
 
   return (
     <div className="flex flex-col items-center justify-center font-sans w-full h-full relative z-50">
@@ -317,7 +315,8 @@ useEffect(() => {
           {/* Background Ring */}
           <circle 
             cx="160" cy="160" r={radius} 
-            className={`${ringBgClass} transition-colors duration-1000`} 
+            className={`transition-colors duration-1000`} 
+            style={{ stroke: 'var(--primary-tint)', opacity: 0.15 }}
             strokeWidth="0.75" fill="transparent" 
           />
           
@@ -326,12 +325,12 @@ useEffect(() => {
             cx="160" cy="160" r={radius} 
             className={`
               transition-all duration-1000 ease-linear 
-              ${strokeColorClass}
               ${isFinished ? 'opacity-0' : 'opacity-100'}
             `} 
             style={{ 
               strokeDasharray: circumference, 
               strokeDashoffset: strokeDashoffset,
+              stroke: 'var(--primary-tint)'
             }}
             strokeWidth="2" 
             fill="transparent" 
@@ -342,10 +341,13 @@ useEffect(() => {
           <circle 
             cx="160" cy="160" r={radius} 
             className={`
-              ${strokeColorClass} transition-all duration-1500 ease-out 
+              transition-all duration-1500 ease-out 
               ${isFinished ? 'opacity-0 scale-[1.3]' : 'opacity-0 scale-100'}
             `} 
-            style={{ transformOrigin: '160px 160px' }}
+            style={{ 
+              transformOrigin: '160px 160px',
+              stroke: 'var(--primary-tint)'
+            }}
             strokeWidth="2.5" 
             fill="transparent" 
           />
@@ -358,7 +360,10 @@ useEffect(() => {
               isFinished ? 'opacity-0 scale-95 blur-sm' : 'opacity-100 scale-100 blur-0'
             }`}
           >
-            <span className={`text-[5.5rem] font-extralight tracking-tighter tabular-nums leading-none transition-colors duration-1000 ${textColorClass}`}>
+            <span 
+              className={`text-[5.5rem] font-extralight tracking-tighter tabular-nums leading-none transition-colors duration-1000 ${textColorClass}`}
+              style={{ color: isBreak ? 'var(--primary-tint)' : 'rgba(255,255,255,0.9)' }}
+            >
               {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
             </span>
           </div>
@@ -368,7 +373,10 @@ useEffect(() => {
               isFinished ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-105 blur-sm pointer-events-none'
             }`}
           >
-            <span className={`text-[1.35rem] font-light tracking-[0.3em] uppercase ${textColorClass}`}>
+            <span 
+              className="text-[1.35rem] font-light tracking-[0.3em] uppercase"
+              style={{ color: isBreak ? 'var(--primary-tint)' : 'rgba(255,255,255,0.9)' }}
+            >
               {isBreak ? "¡A ESTUDIAR!" : "¡TIEMPO!"}
             </span>
           </div>
@@ -388,9 +396,9 @@ useEffect(() => {
           <span className="relative z-10 px-6 py-2 block">
             {isActive ? "Pausar" : (isBreak ? "Reanudar Descanso" : "Iniciar")}
           </span>
-          <div className={`absolute bottom-1 left-0 w-full h-[1px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-center ${
-            isBreak ? 'bg-cyan-300' : 'bg-white/30'
-          }`} />
+          <div className="absolute bottom-1 left-0 w-full h-[1px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-center"
+               style={{ backgroundColor: 'var(--primary-tint)' }} 
+          />
         </button>
 
         {/* Contextual description - Visible when timer is not active */}
