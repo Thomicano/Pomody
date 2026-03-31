@@ -1,10 +1,13 @@
 import { useState, useEffect, Suspense } from 'react';
+import { motion } from 'framer-motion';
 import DigitalClock from "@/components/DigitalClock";
 import PomodoroTimer from "@/components/PomodoroTimer";
 import StickyNotes from "@/components/StickyNotes";
 import Aurora from "@/components/ui/Aurora";
 import VisualPreferencesPanel, { FREE_GRADIENTS } from "@/components/VisualPreferencesPanel";
 import MusicWidget from "@/components/MusicWidget";
+import FloatingDock from "@/components/FloatingDock";
+import PremiumOmnibar from "@/components/PremiumOmnibar";
 
 // Estructura inicial para evitar que el destructuring rompa la app
 const DEFAULT_THEME = {
@@ -26,8 +29,20 @@ export default function App() {
     localStorage.setItem("pomody_theme", JSON.stringify(theme));
   }, [theme]);
 
-  const [tempBgMode, setTempBgMode] = useState(null);
-  const [flashColor, setFlashColor] = useState(null);
+  // Collision Logic Variables
+  const [isDockVisible, setIsDockVisible] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const threshold = window.innerHeight * 0.9; // 10% inferior de la pantalla
+      setIsDockVisible(e.clientY > threshold);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  const [tempBgMode, setTempBgMode] = useState<null | 'aurora'>(null);
+  const [flashColor, setFlashColor] = useState<null | 'study' | 'break'>(null);
   
   const triggerFlash = (color: 'study' | 'break') => {
     setFlashColor(color);
@@ -103,21 +118,35 @@ export default function App() {
           Pomody Studio OS
         </div>
 
-        <div className="relative md:absolute md:top-[20%] md:left-1/2 md:-translate-x-1/2 pointer-events-auto flex-shrink-0 mt-4 md:mt-0 mb-8 md:mb-0">
-          <DigitalClock />
+        <div className="relative md:absolute md:top-[20%] md:left-1/2 md:-translate-x-1/2 pointer-events-none flex-shrink-0 mt-4 md:mt-0 mb-8 md:mb-0 flex flex-col items-center w-full max-w-2xl px-4 md:px-0 z-50">
+          <div className="pointer-events-auto w-full flex justify-center"><DigitalClock /></div>
+          <div className="pointer-events-auto w-full"><PremiumOmnibar /></div>
         </div>
 
         <div className="relative md:absolute md:top-1/2 md:right-24 md:-translate-y-1/2 z-50 pointer-events-auto flex-shrink-0 mb-8 md:mb-0 scale-90 md:scale-100 transition-transform">
           <PomodoroTimer onCycleComplete={triggerFlash} />
         </div>
 
-        <div className="relative flex-1 md:flex-none w-full max-w-[90%] md:max-w-none overflow-x-auto overflow-y-hidden md:overflow-visible custom-scrollbar md:absolute md:bottom-8 md:left-0 flex md:justify-center items-center md:items-end z-20 pointer-events-auto scroll-smooth snap-x snap-mandatory px-4 md:px-0">
+        <motion.div 
+          animate={{ y: isDockVisible ? -65 : 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="relative flex-1 md:flex-none w-full max-w-[90%] md:max-w-none overflow-x-auto overflow-y-hidden md:overflow-visible custom-scrollbar md:absolute md:bottom-8 md:left-0 flex md:justify-center items-center md:items-end z-20 pointer-events-auto scroll-smooth snap-x snap-mandatory px-4 md:px-0"
+        >
           <StickyNotes />
-        </div>
+        </motion.div>
       </main>
 
-      {/* 5. Reproductor Flotante */}
-      <MusicWidget />
+      {/* 5. Reproductor Flotante con Container Translacional */}
+      <motion.div
+        animate={{ y: isDockVisible ? -65 : 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="fixed inset-0 z-[90] pointer-events-none *:pointer-events-auto"
+      >
+        <MusicWidget />
+      </motion.div>
+
+      {/* 6. Floating Dock Inteligente */}
+      <FloatingDock isVisible={isDockVisible} />
     </div>
   );
 }       
