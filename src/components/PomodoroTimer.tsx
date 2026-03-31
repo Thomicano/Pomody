@@ -89,7 +89,13 @@ const playNotificationSound = (soundName = 'alert.mp3') => {
   audio.play().catch(e => console.warn("Interactúa con la página para activar el sonido", e));
 };
 
-export default function PomodoroTimer({ onCycleComplete }: { onCycleComplete: (mode: 'study' | 'break') => void }) {
+export default function PomodoroTimer({ 
+  onCycleComplete, 
+  theme 
+}: { 
+  onCycleComplete: (mode: 'study' | 'break') => void;
+  theme?: any;
+}) {
   const savedSession = getSavedSession();
   const defaultProfile = (savedSession.profile as StudentProfile) || "general";
   const initialMethodId = savedSession.methodId || recommendMethod(defaultProfile);
@@ -143,7 +149,7 @@ export default function PomodoroTimer({ onCycleComplete }: { onCycleComplete: (m
       // Activa fase de animación ininterrumpida
       setIsFinished(true); 
       // Play Feedback de Sonido Sensorial
-      playNotificationSound();
+      playNotificationSound(theme?.pomodoroSound || 'alert.mp3');
     }
 
     return () => {

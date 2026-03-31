@@ -3,25 +3,27 @@ import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Home, Calendar, Sparkles, Music, StickyNote, Settings, User } from 'lucide-react';
 
 const DOCK_ITEMS = [
-  { id: '1', title: 'Home', icon: Home, href: '#' },
-  { id: '2', title: 'Schedule', icon: Calendar, href: '#' },
-  { id: '3', title: 'Magic AI', icon: Sparkles, href: '#' },
-  { id: '4', title: 'Media', icon: Music, href: '#' },
-  { id: '5', title: 'Notes', icon: StickyNote, href: '#' },
-  { id: '6', title: 'Settings', icon: Settings, href: '#' },
-  { id: '7', title: 'Profile', icon: User, href: '#' },
+  { id: '1', title: 'Home', icon: Home, screenId: 'home' },
+  { id: '2', title: 'Schedule', icon: Calendar, screenId: 'calendar' },
+  { id: '3', title: 'Magic AI', icon: Sparkles, screenId: 'home' },
+  { id: '4', title: 'Media', icon: Music, screenId: 'home' },
+  { id: '5', title: 'Notes', icon: StickyNote, screenId: 'home' },
+  { id: '6', title: 'Settings', icon: Settings, screenId: 'settings' },
+  { id: '7', title: 'Profile', icon: User, screenId: 'home' },
 ];
 
 function DockIcon({
   mouseX,
   title,
   icon: Icon,
-  href = '#',
+  screenId,
+  onScreenChange
 }: {
   mouseX: any;
   title: string;
   icon: any;
-  href?: string;
+  screenId?: string;
+  onScreenChange?: (screen: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -63,15 +65,24 @@ function DockIcon({
         onMouseLeave={() => setHovered(false)}
         className="aspect-square rounded-2xl bg-white/5 border border-white/10 shadow-lg backdrop-blur-md flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"
       >
-        <a href={href} className="w-full h-full flex items-center justify-center text-white/80 hover:text-white transition-colors duration-200">
+        <button 
+          onClick={() => screenId && onScreenChange?.(screenId)} 
+          className="w-full h-full flex items-center justify-center text-white/80 hover:text-white transition-colors duration-200 outline-none"
+        >
           <Icon className="w-1/2 h-1/2" />
-        </a>
+        </button>
       </motion.div>
     </div>
   );
 }
 
-export default function FloatingDock({ isVisible = true }: { isVisible?: boolean }) {
+export default function FloatingDock({ 
+  isVisible = true, 
+  onScreenChange 
+}: { 
+  isVisible?: boolean;
+  onScreenChange?: (screen: string) => void;
+}) {
   const mouseX = useMotionValue(Infinity);
 
   return (
@@ -87,7 +98,7 @@ export default function FloatingDock({ isVisible = true }: { isVisible?: boolean
         className="flex h-[58px] items-end gap-3 rounded-3xl bg-black/30 border border-white/10 px-4 pb-2.5 pt-2.5 backdrop-blur-2xl shadow-2xl"
       >
         {DOCK_ITEMS.map((item) => (
-          <DockIcon key={item.id} mouseX={mouseX} {...item} />
+          <DockIcon key={item.id} mouseX={mouseX} {...item} onScreenChange={onScreenChange} />
         ))}
       </motion.div>
     </motion.div>

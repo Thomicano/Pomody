@@ -1,33 +1,21 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, Minimize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactPlayer from 'react-player';
 
 export default function MusicWidget() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0 to 100
   const [isMinimal, setIsMinimal] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Lofi Girl Live Stream ID: jfKfPfyJRdk
   const videoId = 'jfKfPfyJRdk';
 
-  const sendCommand = (func: string, args: any[] = []) => {
-    if (iframeRef.current && iframeRef.current.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func, args }),
-        '*'
-      );
-    }
-  };
-
   const togglePlay = () => {
-    if (isPlaying) {
-      sendCommand('pauseVideo');
-    } else {
-      sendCommand('playVideo');
-    }
     setIsPlaying(!isPlaying);
   };
+
+  const Player = ReactPlayer as any;
 
   // Fake progress for visual effect (since getting real progress from iframe without full API is tricky)
   useEffect(() => {
@@ -56,14 +44,22 @@ export default function MusicWidget() {
           <div className="absolute w-[300%] h-[300%] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,transparent_60%,rgba(255,255,255,0.8)_100%)]" />
         </div>
 
-        {/* Hidden YouTube Iframe */}
-        <iframe
-          ref={iframeRef}
-          className="hidden"
-          src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=0&controls=0&disablekb=1&fs=0&modestbranding=1&playsinline=1`}
-          allow="autoplay; encrypted-media"
-          title="Lofi Music"
-        />
+        {/* Hidden ReactPlayer para control absoluto del Audio */}
+        <div className="hidden">
+          {videoId && (
+            <Player 
+              url={`https://www.youtube.com/watch?v=${videoId}`}
+              playing={isPlaying}
+              controls={false}
+              width="0"
+              height="0"
+              onError={(e: any) => {
+                console.warn('Player Error:', e);
+                setIsPlaying(false);
+              }}
+            />
+          )}
+        </div>
 
         <AnimatePresence mode="popLayout" initial={false}>
           {isMinimal ? (

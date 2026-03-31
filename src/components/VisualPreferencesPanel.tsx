@@ -1,27 +1,7 @@
-import React, { useState } from 'react';
-import { Settings, X, Image as ImageIcon, Sparkles, PaintBucket, LayoutGrid, Lock } from 'lucide-react';
-
-export type BgMode = 'gradient' | 'aurora' | 'image' | 'solid';
-
-export interface AppThemeConfig {
-  activeBgMode: BgMode;
-  activeTint: string | null;
-  imageParameters: { url: string; blur: number };
-  auroraParameters: { color1: string; color2: string; speed: number };
-  solidColor: string;
-  activeGradient: string;
-  autoAuroraOnBreak: boolean;
-}
-
-export const DEFAULT_THEME: AppThemeConfig = {
-  activeBgMode: 'gradient',
-  activeTint: '#38bdf8',
-  imageParameters: { url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000', blur: 0 },
-  auroraParameters: { color1: '#38bdf8', color2: '#818cf8', speed: 1 },
-  solidColor: '#0f172a',
-  activeGradient: 'blue',
-  autoAuroraOnBreak: true
-};
+import { useState, useRef } from 'react';
+import { Settings, X, Image as ImageIcon, Sparkles, PaintBucket, LayoutGrid, Lock, Upload } from 'lucide-react';
+import { useBackground } from '@/hooks/useBackground';
+import type { BgMode } from '@/hooks/useBackground';
 
 export const FREE_IMAGES = [
   { id: 'mountains', url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000', label: 'Montañas' },
@@ -39,19 +19,25 @@ export const FREE_GRADIENTS = [
 ];
 
 interface PanelProps {
-  theme: AppThemeConfig;
-  setTheme: React.Dispatch<React.SetStateAction<AppThemeConfig>>;
+  onToggle?: (isOpen: boolean) => void;
 }
 
-export default function VisualPreferencesPanel({ theme, setTheme }: PanelProps) {
+export default function VisualPreferencesPanel({ onToggle }: PanelProps) {
+  const { theme, setTheme, handleImageUpload } = useBackground();
   const [isOpen, setIsOpen] = useState(false);
   const isPremium = true; // TODO: Integrar con persistencia de Auth
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenStatus = (open: boolean) => {
+    setIsOpen(open);
+    if (onToggle) onToggle(open);
+  };
 
   if (!isOpen) {
     return (
       <button 
-        onClick={() => setIsOpen(true)}
-        className="absolute top-6 right-8 z-[100] p-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-all shadow-lg hover:scale-105 pointer-events-auto"
+        onClick={() => handleOpenStatus(true)}
+        className="absolute top-6 right-8 md:top-8 md:right-8 z-[100] p-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-all shadow-lg hover:scale-105 pointer-events-auto"
       >
         <Settings className="w-5 h-5" />
       </button>
@@ -65,7 +51,7 @@ export default function VisualPreferencesPanel({ theme, setTheme }: PanelProps) 
           <Sparkles className="w-4 h-4 text-cyan-400" />
           Display & Entorno
         </h3>
-        <button onClick={() => setIsOpen(false)} className="text-white/40 hover:text-white transition-colors">
+        <button onClick={() => handleOpenStatus(false)} className="text-white/40 hover:text-white transition-colors">
           <X className="w-5 h-5" />
         </button>
       </div>
@@ -147,16 +133,34 @@ export default function VisualPreferencesPanel({ theme, setTheme }: PanelProps) 
                 ))}
               </div>
               
+              {/* 🟢 FEATURE LOCAL UPLOAD */}
+              <div className="pt-2 border-t border-white/5">
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-colors text-xs uppercase tracking-widest"
+                >
+                  <Upload className="w-4 h-4" />
+                  Subir desde dispositivo
+                </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/png, image/jpeg, image/webp" 
+                  onChange={handleImageUpload}
+                />
+              </div>
+              
               <div className="space-y-2">
                 <label className="flex items-center justify-between text-[10px] uppercase tracking-widest text-white/40">
-                  <span>URL Personalizada</span>
+                  <span>O URL Externa</span>
                   {!isPremium && <span className="text-[9px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded font-medium tracking-normal">PREMIUM</span>}
                 </label>
                 <div className="relative">
                   <input 
                     type="text" 
                     disabled={!isPremium}
-                    value={theme.imageParameters.url}
+                    value={theme.imageParameters.url.startsWith('blob:') ? '' : theme.imageParameters.url}
                     onChange={(e) => setTheme(prev => ({ ...prev, imageParameters: { ...prev.imageParameters, url: e.target.value } }))}
                     className="w-full bg-black/50 border border-white/10 rounded px-3 py-2 text-xs text-white/90 outline-none focus:border-cyan-500/50 transition-colors disabled:opacity-50"
                     placeholder="https://images.unsplash..."
