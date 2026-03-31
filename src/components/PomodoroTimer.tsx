@@ -83,22 +83,10 @@ function getSavedSession(): Partial<SessionData> {
 }
 
 // 1. Audio Notification Factory (Carga desde Carpeta /sounds)
-const playNotificationSound = (soundFile = 'alert.mp3') => {
-  try {
-    const audio = new Audio(`/sounds/${soundFile}`);
-    audio.volume = 0.5; // Volumen balanceado
-    
-    // El play() devuelve una promesa, la manejamos por si el navegador bloquea el autoplay
-    const playPromise = audio.play();
-    
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.warn("Reproducción automática bloqueada. Interactuá con la página primero.", error);
-      });
-    }
-  } catch (error) {
-    console.error("Error al cargar el archivo de audio:", error);
-  }
+const playNotificationSound = (soundName = 'alert.mp3') => {
+  const audio = new Audio(`/sounds/${soundName}`);
+  audio.volume = 0.5;
+  audio.play().catch(e => console.warn("Interactúa con la página para activar el sonido", e));
 };
 
 export default function PomodoroTimer({ onCycleComplete }: { onCycleComplete: (mode: 'study' | 'break') => void }) {
