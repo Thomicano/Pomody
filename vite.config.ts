@@ -8,6 +8,12 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    allowedHosts: [
+      // <--- AGREGÁ ESTA LÍNEA EXACTA
+      '.loca.lt' // O podés poner esto para que acepte cualquier túnel de localtunnel
+    ]
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

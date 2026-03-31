@@ -26,7 +26,8 @@ export const DEFAULT_THEME: AppThemeConfig = {
 export const FREE_IMAGES = [
   { id: 'mountains', url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000', label: 'Montañas' },
   { id: 'forest', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=2000', label: 'Bosque' },
-  { id: 'city', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=80&w=2000', label: 'Ciudad' }
+  { id: 'city', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=80&w=2000', label: 'Ciudad' },
+  { id: 'renekton', url: 'https://images.contentstack.io/v3/assets/blt7085050800c85078/bltc82df37b4258380e/5db05fd76e82c56ad8cce442/Renekton_0.jpg', label: 'Renekton' }
 ];
 
 export const FREE_SOLIDS = ['#0f172a', '#171717', '#1e1b4b', '#064e3b', '#4c0519'];

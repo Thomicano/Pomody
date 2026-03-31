@@ -85,24 +85,25 @@ export default function StickyNotes() {
   if (!isLoaded) return null;
 
   return (
-    <div className="w-full h-fit flex flex-col items-center justify-end relative z-30 pointer-events-none pb-12">
+    <div className="relative w-full flex justify-center p-4 z-30 pointer-events-none">
       
-      {/* Container flex para alinear notas horizontalmente en la parte inferior */}
-      <div className="flex flex-wrap justify-center items-end gap-x-8 gap-y-12 pointer-events-auto">
+      {/* Container flex para alinear notas: Row scrollable en mobile, Wrap en desktop */}
+      <div className="flex flex-row md:flex-wrap justify-start md:justify-center items-center md:items-end gap-x-8 gap-y-12 pointer-events-auto w-full md:px-0 pt-4">
         {notes.map((note) => (
-          <StickyNote 
-            key={note.id} 
-            note={note} 
-            onDelete={() => deleteNote(note.id)} 
-            onChange={(text) => updateNoteText(note.id, text)} 
-          />
+          <div key={note.id} className="shrink-0 snap-center">
+            <StickyNote 
+              note={note} 
+              onDelete={() => deleteNote(note.id)} 
+              onChange={(text) => updateNoteText(note.id, text)} 
+            />
+          </div>
         ))}
 
         {/* Botón Añadir (estilo glassmorphism) - Aparece al lado de las notas */}
         {notes.length < 6 && (
           <button 
             onClick={addNote}
-            className="group flex flex-col items-center justify-center w-[180px] h-[180px] rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 backdrop-blur-md transition-all duration-300 text-white/50 hover:text-white/90 cursor-pointer border-dashed outline-none"
+            className="shrink-0 snap-center group flex flex-col items-center justify-center w-[180px] h-[180px] rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 backdrop-blur-md transition-all duration-300 text-white/50 hover:text-white/90 cursor-pointer border-dashed outline-none"
           >
             <div className="p-3 rounded-full bg-black/20 group-hover:bg-black/40 transition-colors mb-2 shadow-inner">
               <Plus className="w-5 h-5 transition-transform group-hover:rotate-90 duration-300" />
@@ -111,7 +112,6 @@ export default function StickyNotes() {
           </button>
         )}
       </div>
-
     </div>
   );
 }
