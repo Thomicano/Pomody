@@ -4,6 +4,7 @@ import PomodoroTimer from "@/components/PomodoroTimer";
 import StickyNotes from "@/components/StickyNotes";
 import Aurora from "@/components/ui/Aurora";
 import VisualPreferencesPanel, { FREE_GRADIENTS } from "@/components/VisualPreferencesPanel";
+import MusicWidget from "@/components/MusicWidget";
 
 // Estructura inicial para evitar que el destructuring rompa la app
 const DEFAULT_THEME = {
@@ -114,6 +115,9 @@ export default function App() {
           <StickyNotes />
         </div>
       </main>
+
+      {/* 5. Reproductor Flotante */}
+      <MusicWidget />
     </div>
   );
 }       
