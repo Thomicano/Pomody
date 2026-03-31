@@ -89,13 +89,14 @@ const playNotificationSound = (soundName = 'alert.mp3') => {
   audio.play().catch(e => console.warn("Interactúa con la página para activar el sonido", e));
 };
 
+import { useBackground } from "@/hooks/useBackground";
+
 export default function PomodoroTimer({ 
-  onCycleComplete, 
-  theme 
+  onCycleComplete 
 }: { 
   onCycleComplete: (mode: 'study' | 'break') => void;
-  theme?: any;
 }) {
+  const { theme } = useBackground();
   const savedSession = getSavedSession();
   const defaultProfile = (savedSession.profile as StudentProfile) || "general";
   const initialMethodId = savedSession.methodId || recommendMethod(defaultProfile);

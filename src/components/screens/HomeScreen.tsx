@@ -16,9 +16,11 @@ export default function HomeScreen({ isDockVisible }: { isDockVisible: boolean }
       <motion.div 
         animate={{ y: isDockVisible ? -90 : 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="absolute bottom-12 left-0 w-full flex justify-center items-center z-20 pointer-events-auto px-4"
+        className="absolute bottom-12 left-0 w-full flex justify-center items-center z-20 pointer-events-none px-4"
       >
-        <StickyNotes />
+        <div className="pointer-events-auto">
+          <StickyNotes />
+        </div>
       </motion.div>
     </>
   );
