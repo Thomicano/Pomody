@@ -44,7 +44,7 @@ export default function MusicWidget() {
   }, [isPlaying]);
 
   return (
-    <div className="absolute bottom-32 left-4 md:bottom-12 md:left-12 z-[100] group transition-all duration-500 pointer-events-auto">
+    <div className="absolute bottom-[152px] md:bottom-[72px] left-4 md:left-12 z-[100] group transition-all duration-500 pointer-events-auto">
       <motion.div 
         layout
         transition={{ type: "spring", stiffness: 350, damping: 30 }}
@@ -96,10 +96,10 @@ export default function MusicWidget() {
 
               <button 
                 onClick={() => setIsMinimal(false)} 
-                className="text-white/40 hover:text-white/90 transition-colors z-20 outline-none flex-shrink-0"
+                className="text-white/60 hover:text-white transition-colors relative z-[150] outline-none flex-shrink-0 w-8 h-8 flex items-center justify-center cursor-pointer"
                 title="Maximizar"
               >
-                <Maximize2 size={13} />
+                <Maximize2 size={16} />
               </button>
             </motion.div>
           ) : (

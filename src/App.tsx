@@ -31,15 +31,29 @@ export default function App() {
 
   // Collision Logic Variables
   const [isDockVisible, setIsDockVisible] = useState(false);
+  const [isWidgetHovered, setIsWidgetHovered] = useState(false);
+  const [widgetY, setWidgetY] = useState(0);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      const threshold = window.innerHeight * 0.9; // 10% inferior de la pantalla
-      setIsDockVisible(e.clientY > threshold);
+      setIsDockVisible((prev) => {
+        // Franja muy fina de 15px para disparar el dock
+        if (!prev && e.clientY >= window.innerHeight - 15) return true;
+        // Tolerancia de 100px para mantenerlo abierto al subir a clickear
+        if (prev && e.clientY < window.innerHeight - 100) return false;
+        return prev;
+      });
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
+
+  // Lock Logic: Si está siendo interactuado, congela la traslación Y
+  useEffect(() => {
+    if (!isWidgetHovered) {
+      setWidgetY(isDockVisible ? -90 : 0);
+    }
+  }, [isDockVisible, isWidgetHovered]);
 
   const [tempBgMode, setTempBgMode] = useState<null | 'aurora'>(null);
   const [flashColor, setFlashColor] = useState<null | 'study' | 'break'>(null);
@@ -135,18 +149,20 @@ export default function App() {
         <motion.div 
           animate={{ y: isDockVisible ? -90 : 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="absolute bottom-6 left-0 w-full flex justify-center items-center z-20 pointer-events-auto px-4"
+          className="absolute bottom-12 left-0 w-full flex justify-center items-center z-20 pointer-events-auto px-4"
         >
           <StickyNotes />
         </motion.div>
 
       </main>
 
-      {/* 5. Reproductor Flotante con Intelligent Overlap */}
+      {/* 5. Reproductor Flotante con Intelligent Lock Overlap */}
       <motion.div
-        animate={{ y: isDockVisible ? -90 : 0 }}
+        animate={{ y: widgetY }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="fixed inset-0 z-[90] pointer-events-none"
+        onMouseEnter={() => setIsWidgetHovered(true)}
+        onMouseLeave={() => setIsWidgetHovered(false)}
       >
         <MusicWidget />
       </motion.div>
