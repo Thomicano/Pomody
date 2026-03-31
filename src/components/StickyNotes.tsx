@@ -62,7 +62,7 @@ export default function StickyNotes() {
   }, [notes, isLoaded]);
 
   const addNote = () => {
-    if (notes.length >= 6) return; // Limitar a 6 para evitar overflow en pantalla
+    if (notes.length >= 3) return; // Limitar a 3 notas por grid inteligente
     
     const newNote: StickyNoteData = {
       id: generateId(),
@@ -85,12 +85,12 @@ export default function StickyNotes() {
   if (!isLoaded) return null;
 
   return (
-    <div className="relative w-full flex justify-center p-4 z-30 pointer-events-none">
+    <div className="relative w-full flex justify-center z-30 pointer-events-none">
       
-      {/* Container flex para alinear notas: Row scrollable en mobile, Wrap en desktop */}
-      <div className="flex flex-row md:flex-wrap justify-start md:justify-center items-center md:items-end gap-x-8 gap-y-12 pointer-events-auto w-full md:px-0 pt-4">
+      {/* Contenedor flex inteligente de notas */}
+      <div className="flex justify-center items-center gap-6 pointer-events-auto w-full">
         {notes.map((note) => (
-          <div key={note.id} className="shrink-0 snap-center">
+          <div key={note.id} className="shrink-0 relative z-30 hover:z-50 transition-all">
             <StickyNote 
               note={note} 
               onDelete={() => deleteNote(note.id)} 
@@ -99,11 +99,11 @@ export default function StickyNotes() {
           </div>
         ))}
 
-        {/* Botón Añadir (estilo glassmorphism) - Aparece al lado de las notas */}
-        {notes.length < 6 && (
+        {/* Botón Añadir (estilo glassmorphism) */}
+        {notes.length < 3 && (
           <button 
             onClick={addNote}
-            className="shrink-0 snap-center group flex flex-col items-center justify-center w-[180px] h-[180px] rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 backdrop-blur-md transition-all duration-300 text-white/50 hover:text-white/90 cursor-pointer border-dashed outline-none"
+            className="relative z-20 shrink-0 group flex flex-col items-center justify-center w-[180px] h-[180px] rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 backdrop-blur-md transition-all duration-300 text-white/50 hover:text-white/90 cursor-pointer border-dashed outline-none shadow-xl"
           >
             <div className="p-3 rounded-full bg-black/20 group-hover:bg-black/40 transition-colors mb-2 shadow-inner">
               <Plus className="w-5 h-5 transition-transform group-hover:rotate-90 duration-300" />

@@ -82,38 +82,22 @@ function getSavedSession(): Partial<SessionData> {
   return {};
 }
 
-// 1. Audio Notification Factory (Web Audio API - Campana Zen)
-const playZenBell = () => {
+// 1. Audio Notification Factory (Carga desde Carpeta /sounds)
+const playNotificationSound = (soundFile = 'alert.mp3') => {
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-
-    const playTone = (freq: number, type: OscillatorType, startTime: number, dur: number, vol: number) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      
-      // Envolvente de sonido para suavizar el ataque y la caída (Zen / Lofi style)
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(vol, startTime + 0.05); // Suave impacto inicial
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur); // Eco profundo y decreciente
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(startTime);
-      osc.stop(startTime + dur);
-    };
-
-    const now = ctx.currentTime;
-    // Campana Tibetana / Cuenco de Cuarzo de síntesis aditiva
-    playTone(432, "sine", now, 3.5, 0.3);            // Fundamental (A432)
-    playTone(432 * 2.01, "sine", now, 2.8, 0.08);    // Armónico primo
-    playTone(432 * 3.02, "sine", now, 2.0, 0.04);    // Siguiente armónico
-    playTone(432 * 1.5, "triangle", now, 1.5, 0.05); // Textura sutil y cálida
+    const audio = new Audio(`/sounds/${soundFile}`);
+    audio.volume = 0.5; // Volumen balanceado
+    
+    // El play() devuelve una promesa, la manejamos por si el navegador bloquea el autoplay
+    const playPromise = audio.play();
+    
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.warn("Reproducción automática bloqueada. Interactuá con la página primero.", error);
+      });
+    }
   } catch (error) {
-    console.warn("Audio API failed or autoplay blocked", error);
+    console.error("Error al cargar el archivo de audio:", error);
   }
 };
 
@@ -171,7 +155,7 @@ export default function PomodoroTimer({ onCycleComplete }: { onCycleComplete: (m
       // Activa fase de animación ininterrumpida
       setIsFinished(true); 
       // Play Feedback de Sonido Sensorial
-      playZenBell();
+      playNotificationSound();
     }
 
     return () => {
@@ -424,7 +408,7 @@ useEffect(() => {
           />
         </button>
 
-        {/* Contextual description - Visible when timer is not active */}
+          
         <div className={`mt-6 text-center max-w-xs transition-all duration-700 ${!isActive ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
           <span className="text-[10px] text-white/40 tracking-[0.05em] font-light leading-relaxed block px-4 text-center">
             {activeMethod.description}

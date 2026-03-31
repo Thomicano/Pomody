@@ -113,34 +113,40 @@ export default function App() {
       <VisualPreferencesPanel theme={theme} setTheme={setTheme} />
 
       {/* 4. Contenido Frontal */}
-      <main className="relative z-10 w-full h-full pointer-events-none flex flex-col items-center pt-24 pb-20 md:pt-0 md:pb-0 md:block">
+      <main className="relative z-10 w-full h-full pointer-events-none">
+        
+        {/* Banner Superior OS */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/5 text-[10px] tracking-[0.3em] uppercase opacity-40 z-50">
           Pomody Studio OS
         </div>
 
-        <div className="relative md:absolute md:top-[20%] md:left-1/2 md:-translate-x-1/2 pointer-events-none flex-shrink-0 mt-4 md:mt-0 mb-8 md:mb-0 flex flex-col items-center w-full max-w-2xl px-4 md:px-0 z-50">
+        {/* Capa Central: Reloj y Buscador */}
+        <div className="absolute top-[20%] left-1/2 -translate-x-1/2 pointer-events-none flex-shrink-0 flex flex-col items-center w-full max-w-2xl px-4 md:px-0 z-50">
           <div className="pointer-events-auto w-full flex justify-center"><DigitalClock /></div>
           <div className="pointer-events-auto w-full"><PremiumOmnibar /></div>
         </div>
 
-        <div className="relative md:absolute md:top-1/2 md:right-24 md:-translate-y-1/2 z-50 pointer-events-auto flex-shrink-0 mb-8 md:mb-0 scale-90 md:scale-100 transition-transform">
+        {/* Lateral Derecho: Pomodoro */}
+        <div className="absolute top-1/2 right-[5%] md:right-24 -translate-y-1/2 z-50 pointer-events-auto flex-shrink-0 scale-90 md:scale-100 transition-transform">
           <PomodoroTimer onCycleComplete={triggerFlash} />
         </div>
 
+        {/* Zona Inferior: StickyNotes con Intelligent Overlap */}
         <motion.div 
-          animate={{ y: isDockVisible ? -65 : 0 }}
+          animate={{ y: isDockVisible ? -90 : 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="relative flex-1 md:flex-none w-full max-w-[90%] md:max-w-none overflow-x-auto overflow-y-hidden md:overflow-visible custom-scrollbar md:absolute md:bottom-8 md:left-0 flex md:justify-center items-center md:items-end z-20 pointer-events-auto scroll-smooth snap-x snap-mandatory px-4 md:px-0"
+          className="absolute bottom-6 left-0 w-full flex justify-center items-center z-20 pointer-events-auto px-4"
         >
           <StickyNotes />
         </motion.div>
+
       </main>
 
-      {/* 5. Reproductor Flotante con Container Translacional */}
+      {/* 5. Reproductor Flotante con Intelligent Overlap */}
       <motion.div
-        animate={{ y: isDockVisible ? -65 : 0 }}
+        animate={{ y: isDockVisible ? -90 : 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="fixed inset-0 z-[90] pointer-events-none *:pointer-events-auto"
+        className="fixed inset-0 z-[90] pointer-events-none"
       >
         <MusicWidget />
       </motion.div>
