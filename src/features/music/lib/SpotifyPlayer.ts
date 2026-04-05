@@ -1,4 +1,4 @@
-import { type MusicAdapter, type PlayerState } from "./types";
+import { type MusicAdapter, type PlayerState } from "../../types/types";
 
 declare global {
   interface Window {
@@ -43,7 +43,7 @@ export class SpotifyPlayer implements MusicAdapter {
       this.player.connect().then((success: boolean) => {
         if (success) console.log("✅ [Spotify SDK] Dispositivo Pomody OS conectado");
       });
-      
+
     };
 
     // 🟢 Si el SDK ya cargó (muy probable), ejecutamos la función manualmente YA
@@ -62,19 +62,28 @@ export class SpotifyPlayer implements MusicAdapter {
     }
   }
   // ... resto de métodos (play, pause, etc)
-  
+
 
   // Métodos de la interfaz
   async play() { await this.player?.resume(); }
   async pause() { await this.player?.pause(); }
   async next() { await this.player?.nextTrack(); }
   async previous() { await this.player?.previousTrack(); }
-  
+
   openExternal() {
     window.open("https://open.spotify.com", "_blank");
   }
 
-  subscribe(callback: (state: PlayerState) => void) { 
-    this.onStateChangeCallback = callback; 
+  subscribe(callback: (state: PlayerState) => void) {
+    this.onStateChangeCallback = callback;
+    // Emitimos un estado inicial "idle" para que el widget salga del estado de carga
+    callback({
+      isPlaying: false,
+      trackName: "Spotify Ready",
+      artist: "Pomody OS",
+      albumArt: "",
+      progressMs: 0,
+      durationMs: 0,
+    });
   }
 }
