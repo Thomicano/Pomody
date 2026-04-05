@@ -14,14 +14,15 @@ import VisualPreferencesPanel from "@/components/VisualPreferencesPanel";
 import SettingsScreen, { FREE_GRADIENTS } from "@/components/screens/SettingsScreen";
 
 export default function App() {
-  const { theme } = useBackground();
-
+  const { theme } = useBackground()!;
   // Test Supabase Frontend Connection
-  useEffect(() => {
-    fetchUserEvents().then(data => {
-      if (data) console.log("🟢 [Supabase] Eventos recuperados:", data.length);
-    });
-  }, []);
+  //useEffect(() => {
+    //fetchUserEvents().then(data => {
+      //if (data) console.log("🟢 [Supabase] Eventos recuperados:", data.length);
+    //});
+  //}, []);
+  // 🟢 1. Definí tu token arriba de todo en App.tsx (para que sea fácil cambiarlo)
+const SPOTIFY_TOKEN = 'BQCPcerQCoRIBMDj5KZbqStJdmx2_mgQhAHgEOD3ga1B0BM5eAsMmFq2hKnNG31SB7_MKgm5IlWdAohrf6n8AbtbzCc6XrZuWvp9TWJX2ZWUN4Vt8tIm8Wh13vD0_A5y1nuPt-6_2cdQuK_t6MSMGMAs-duocH9T1SsIxS1MJWgbbcxZWjfV73z9MU4SsFh8CXxPG9dFYcDCqx_oKNHAawOJN31_e3t8F0b3ns2r5x91Hy8uto0HU9Czdr5FoYrZYWlsE_yDBq3_eajvaLvCg4X4SGfb4O11puB6kTmCtvnLH6pBgtwhXl5a3uu_pnArp1-yU_S8Ew';
 
   // Routing State
   const [currentScreen, setCurrentScreen] = useState('home');
@@ -122,7 +123,7 @@ export default function App() {
       `} />
 
       {/* 3. Lateral Derecho: Pomodoro (Se desvanece si el panel está abierto, sin deesplazamientos) */}
-      <div className={`absolute top-1/2 right-[5%] md:right-8 -translate-y-1/2 z-30 transition-all duration-700 flex-shrink-0 origin-right ${
+      <div className={`absolute top-1/2 right-[5%] md:right-8 -translate-y-1/2 z-[60] transition-all duration-700 flex-shrink-0 origin-right ${
         currentScreen === 'home' 
           ? `pointer-events-auto scale-90 md:scale-100 ${isPreferencesOpen ? 'opacity-0 pointer-events-none blur-[4px]' : 'opacity-100'}` 
           : 'opacity-40 pointer-events-none scale-75 md:scale-95 translate-x-12'
@@ -189,12 +190,14 @@ export default function App() {
           x: 0
         }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`fixed inset-0 z-30 pointer-events-none ${isPreferencesOpen ? 'blur-[2px] opacity-40' : ''}`}
+        className={`fixed inset-0 z-[60] pointer-events-none ${isPreferencesOpen ? 'blur-[2px] opacity-40' : ''}`}
         onMouseEnter={() => setIsWidgetHovered(true)}
         onMouseLeave={() => setIsWidgetHovered(false)}
       >
-        <div style={{ pointerEvents: currentScreen === 'home' && !isPreferencesOpen ? 'auto' : 'none' }}>
-          <MusicWidget />
+        {/* 🟢 El widget de música ahora es global y clickeable en cualquier pantalla, 
+    salvo cuando abrimos la ruedita de ajustes */}
+        <div style={{ pointerEvents: !isPreferencesOpen ? 'auto' : 'none' }}>
+          <MusicWidget token={SPOTIFY_TOKEN}/>
         </div>
       </motion.div>
 

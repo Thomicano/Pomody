@@ -39,15 +39,20 @@ export default function PremiumOmnibar() {
         body: { input: inputValue }
       });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || JSON.stringify(error));
+      }
       
-      setFeedback({ msg: 'Evento agendado con IA', type: 'success' });
+      setFeedback({ msg: '🟢 Evento agendado en Personal', type: 'success' });
       setInputValue('');
       setTimeout(() => setFeedback(null), 3000);
     } catch (err: any) {
-      console.error(err);
-      setFeedback({ msg: 'Error de IA/Auth', type: 'error' });
-      setTimeout(() => setFeedback(null), 3000);
+      console.error("Supabase Error Details:", err);
+      // Log more precise feedback to the user's interface
+      const errorMessage = err?.message?.includes("Failed to fetch") ? "Error de Red (CORS / Local)" :
+                           err?.message || "Error interno de IA";
+      setFeedback({ msg: `Ups: ${errorMessage.substring(0, 30)}...`, type: 'error' });
+      setTimeout(() => setFeedback(null), 4000);
     } finally {
       setIsLoading(false);
     }

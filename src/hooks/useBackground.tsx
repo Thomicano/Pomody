@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, type ReactNode } from 'react';
 
 export type BgMode = 'gradient' | 'aurora' | 'image' | 'solid';
 
@@ -77,8 +77,6 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
 
 export function useBackground() {
   const context = useContext(BackgroundContext);
-  if (context === undefined) {
-    throw new Error('useBackground must be used within a BackgroundProvider');
-  }
+  // Retorna undefined en lugar de lanzar si no hay Provider en el árbol
   return context;
 }

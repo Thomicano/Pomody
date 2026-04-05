@@ -9,10 +9,23 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.log("🟢 [Supabase] Conexión establecida con éxito");
 }
 
+export interface PomodyEvent {
+  id: string;
+  user_id: string;
+  calendar_id?: string;
+  title: string;
+  start_time: string;
+  end_time?: string | null;
+  event_type?: string;
+  color?: string;
+  all_day?: boolean;
+  created_at?: string;
+}
+
 export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
 
 // Función inicial para interactuar con la DB
-export async function fetchUserEvents() {
+export async function fetchUserEvents(): Promise<PomodyEvent[] | null> {
   const { data, error } = await supabase
     .from('events')
     .select('*');

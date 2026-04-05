@@ -39,7 +39,9 @@ serve(async (req) => {
       Del input proporcionado, extrae y arma un JSON ESTRICTO bajo este diseño:
       {
         "title": "título derivado claro",
-        "date": "fecha ISO si la deduces, o DD/MM/YYYY text",
+        "start_time": "fecha/hora ISO si la deduces o te la dan",
+        "end_time": "fecha/hora ISO calculada exactamente 1 hora después del start_time",
+        "calendar_id": "nombre del calendario al que pertenece, si no se infiere devuelve 'Personal'",
         "type": "exam" | "hw" | "class" | "other"
       }
       Input usuario: ${input}
@@ -69,19 +71,33 @@ serve(async (req) => {
     // 6. Castear y Validar Formato JSON (Sanitización)
     const jsonEvent = JSON.parse(structuredResultText);
 
-    if (!jsonEvent.title || !jsonEvent.date) {
+    if (!jsonEvent.title || !jsonEvent.start_time) {
         throw new Error("500: AI devolvió objeto malformado.");
+    }
+
+    // Calcula 1 hora después si la IA omitió calcularlo
+    let calculatedEndTime = jsonEvent.end_time;
+    if (!calculatedEndTime) {
+        const startDate = new Date(jsonEvent.start_time);
+        if (!isNaN(startDate.getTime())) {
+            startDate.setHours(startDate.getHours() + 1);
+            calculatedEndTime = startDate.toISOString();
+        }
     }
 
     // 7. Guardar en Base de Datos vía Supabase Creado por Usuario (Respeta RLS)
     const supabase = createUserClient(req);
     const { data: dbInsert, error: dbError } = await supabase
-      .from('user_events')
+      .from('events') // Updated to standard 'events' table
       .insert({
         user_id: user.id,
+        calendar_id: jsonEvent.calendar_id || 'Personal',
         title: jsonEvent.title,
-        date_string: jsonEvent.date,
-        event_type: jsonEvent.type || 'other'
+        start_time: jsonEvent.start_time,
+        end_time: calculatedEndTime || null,
+        event_type: jsonEvent.type || 'other',
+        color: 'blue',
+        all_day: false
       })
       .select()
       .single();

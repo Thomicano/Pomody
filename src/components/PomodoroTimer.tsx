@@ -205,7 +205,7 @@ useEffect(() => {
 
   const toggleTimer = () => {
     if (!isFinished) {
-      setIsActive(!isActive);
+      setIsActive(prev => !prev);
     }
   };
 

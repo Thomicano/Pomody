@@ -9,9 +9,12 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    
     allowedHosts: [
+      
       // <--- AGREGÁ ESTA LÍNEA EXACTA
-      '.loca.lt' // O podés poner esto para que acepte cualquier túnel de localtunnel
+      '.loca.lt' 
+      // O podés poner esto para que acepte cualquier túnel de localtunnel
     ]
   },
   resolve: {
