@@ -94,7 +94,7 @@ function parseInputFromText(input: string): ParsedInput | null {
 // COMPONENT
 // ═══════════════════════════════════════════════════════════
 
-export default function PremiumOmnibar() {
+export default function PremiumOmnibar({ onClose }: { onClose?: () => void } = {}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -107,12 +107,27 @@ export default function PremiumOmnibar() {
         e.preventDefault();
         inputRef.current?.focus();
       }
-      if (e.key === 'Escape' && isFocused) {
-        inputRef.current?.blur();
+      if (e.key === 'Escape') {
+        if (isFocused) inputRef.current?.blur();
+        if (onClose) onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    // Custom browser event for UI triggers
+    const handleFocusOmnibar = () => {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+    };
+    window.addEventListener('focus-omnibar', handleFocusOmnibar);
+    window.addEventListener('open-omnibar', handleFocusOmnibar);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('focus-omnibar', handleFocusOmnibar);
+      window.removeEventListener('open-omnibar', handleFocusOmnibar);
+    };
   }, [isFocused]);
 
   const handleSubmit = async () => {
@@ -215,7 +230,7 @@ export default function PremiumOmnibar() {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          placeholder={feedback ? feedback.msg : "Parcial de Física mañana a las 15..."}
+          placeholder={isLoading ? "Groq is thinking..." : feedback ? feedback.msg : "Parcial de Física mañana a las 15..."}
           disabled={isLoading}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}

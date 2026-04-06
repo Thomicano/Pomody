@@ -16,7 +16,8 @@ import SidebarControl from "./features/music/components/SidebarControl";
 
 // Screens
 import HomeScreen from "@/components/screens/HomeScreen";
-import CalendarScreen from "@/components/screens/CalendarScreen";
+import PremiumOmnibar from "@/components/PremiumOmnibar";
+import CalendarScreen from "@/features/calendar/CalendarRoot";
 import SettingsScreen, { FREE_GRADIENTS } from "@/components/screens/SettingsScreen";
 import ProfileScreen from "@/components/screens/ProfileScreen";
 import MusicScreen from "@/components/screens/MusicScreen";
@@ -63,6 +64,20 @@ export default function App() {
     }
     setActiveModal(action as ModalId);
   };
+
+  // ═══ GLOBAL OMNIBAR LISTENER ═══
+  const [isOmnibarGlobalOpen, setIsOmnibarGlobalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenOmnibar = () => {
+      setIsOmnibarGlobalOpen(true);
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('focus-omnibar'));
+      }, 50);
+    };
+    window.addEventListener('open-omnibar', handleOpenOmnibar);
+    return () => window.removeEventListener('open-omnibar', handleOpenOmnibar);
+  }, []);
 
   // ═══ SIDEBAR — Hover-triggered ═══
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -312,6 +327,23 @@ export default function App() {
         onAction={handleDockAction}
         isSpotifyLinked={spotifyAuth.isAuthenticated}
       />
+
+      {/* ═══ GLOBAL OMNIBAR OVERLAY ═══ */}
+      <AnimatePresence>
+        {isOmnibarGlobalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm pointer-events-auto flex items-start justify-center pt-[20vh] px-4"
+            onClick={() => setIsOmnibarGlobalOpen(false)}
+          >
+            <div className="w-full" onClick={(e) => e.stopPropagation()}>
+              <PremiumOmnibar onClose={() => setIsOmnibarGlobalOpen(false)} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

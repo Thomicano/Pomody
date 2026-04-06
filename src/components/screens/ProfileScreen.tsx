@@ -8,27 +8,27 @@ interface ProfileScreenProps {
   onOpenMagicAI?: () => void;
 }
 
-const GEMINI_KEY_STORAGE = "pomody_gemini_api_key";
+const GROQ_KEY_STORAGE = "pomody_groq_api_key";
 
 export default function ProfileScreen({ user, onLogout, onClose, onOpenMagicAI }: ProfileScreenProps) {
-  const [geminiKey, setGeminiKey] = useState("");
+  const [groqKey, setGroqKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(GEMINI_KEY_STORAGE);
-    if (stored) setGeminiKey(stored);
+    const stored = localStorage.getItem(GROQ_KEY_STORAGE);
+    if (stored) setGroqKey(stored);
   }, []);
 
   const saveKey = () => {
-    localStorage.setItem(GEMINI_KEY_STORAGE, geminiKey);
+    localStorage.setItem(GROQ_KEY_STORAGE, groqKey);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   const removeKey = () => {
-    localStorage.removeItem(GEMINI_KEY_STORAGE);
-    setGeminiKey("");
+    localStorage.removeItem(GROQ_KEY_STORAGE);
+    setGroqKey("");
   };
 
   const name = user?.user_metadata?.full_name || "Usuario";
@@ -77,9 +77,9 @@ export default function ProfileScreen({ user, onLogout, onClose, onOpenMagicAI }
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sparkles size={14} className="text-indigo-500" />
-                  <span className="text-xs text-slate-700 font-medium tracking-wide">Gemini API Key</span>
+                  <span className="text-xs text-slate-700 font-medium tracking-wide">Groq API Key</span>
                 </div>
-                {geminiKey && (
+                {groqKey && (
                   <button
                     onClick={removeKey}
                     className="text-[9px] text-red-400 hover:text-red-600 uppercase tracking-widest transition-colors"
@@ -92,9 +92,9 @@ export default function ProfileScreen({ user, onLogout, onClose, onOpenMagicAI }
               <div className="relative">
                 <input
                   type={showKey ? "text" : "password"}
-                  value={geminiKey}
-                  onChange={(e) => setGeminiKey(e.target.value)}
-                  placeholder="AIzaSy..."
+                  value={groqKey}
+                  onChange={(e) => setGroqKey(e.target.value)}
+                  placeholder="gsk_..."
                   className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 pr-20 text-xs text-slate-700 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all font-mono"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -114,16 +114,16 @@ export default function ProfileScreen({ user, onLogout, onClose, onOpenMagicAI }
               </div>
 
               <a
-                href="https://aistudio.google.com/app/apikey"
+                href="https://console.groq.com/keys"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-[9px] text-cyan-600 hover:text-cyan-700 uppercase tracking-widest transition-colors"
               >
                 <ExternalLink size={10} />
-                Obtener API Key de Google AI Studio
+                Obtener API Key de Groq
               </a>
 
-              {geminiKey && onOpenMagicAI && (
+              {groqKey && onOpenMagicAI && (
                 <button
                   onClick={() => { onClose(); onOpenMagicAI(); }}
                   className="w-full mt-1 py-2 rounded-xl bg-indigo-50 border border-indigo-200/60 text-indigo-600 text-[10px] uppercase tracking-widest font-medium hover:bg-indigo-100 transition-colors"

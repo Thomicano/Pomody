@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Sparkles, Send, Key, ArrowRight, X } from "lucide-react";
 
-const GEMINI_KEY_STORAGE = "pomody_gemini_api_key";
+const GROQ_KEY_STORAGE = "pomody_groq_api_key";
 
 interface MagicAIScreenProps {
   onOpenProfile: () => void;
@@ -21,7 +21,7 @@ export default function MagicAIScreen({ onOpenProfile, onClose }: MagicAIScreenP
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setApiKey(localStorage.getItem(GEMINI_KEY_STORAGE));
+    setApiKey(localStorage.getItem(GROQ_KEY_STORAGE));
   }, []);
 
   useEffect(() => {
@@ -38,33 +38,33 @@ export default function MagicAIScreen({ onOpenProfile, onClose }: MagicAIScreenP
 
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        "https://api.groq.com/openai/v1/chat/completions",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
-            contents: [
-              ...messages.map((m) => ({
-                role: m.role === "user" ? "user" : "model",
-                parts: [{ text: m.text }],
-              })),
-              { role: "user", parts: [{ text: userMsg.text }] },
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: "Sos un asistente de productividad inteligente para Pomody Studio OS. Respondé de forma concisa, amigable, y profesional. Usá español rioplatense." },
+              ...messages,
+              userMsg
             ],
-            systemInstruction: {
-              parts: [{ text: "Sos un asistente de productividad inteligente para Pomody Studio OS. Respondé de forma concisa, amigable, y profesional. Usá español rioplatense." }],
-            },
+            temperature: 0.7,
           }),
         }
       );
 
-      if (!res.ok) throw new Error(`Gemini API: ${res.status}`);
+      if (!res.ok) throw new Error(`Groq API: ${res.status}`);
 
       const data = await res.json();
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta.";
+      const reply = data.choices?.[0]?.message?.content || "Sin respuesta.";
       setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
     } catch (err) {
       console.error("❌ [MagicAI]", err);
-      setMessages((prev) => [...prev, { role: "assistant", text: "Error al conectar con Grok. Verificá tu API Key." }]);
+      setMessages((prev) => [...prev, { role: "assistant", text: "Error al conectar con Groq. Verificá tu API Key." }]);
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +91,7 @@ export default function MagicAIScreen({ onOpenProfile, onClose }: MagicAIScreenP
             IA No Vinculada
           </h2>
           <p className="text-[11px] text-slate-400 tracking-wider leading-relaxed max-w-xs mb-6">
-            Para usar Magic AI necesitás vincular tu API Key de Grok en el panel de Perfil.
+            Para usar Magic AI necesitás vincular tu API Key de Groq en el panel de Perfil.
           </p>
           <button
             onClick={onOpenProfile}
