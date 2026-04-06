@@ -17,8 +17,15 @@ import SidebarControl from "./features/music/components/SidebarControl";
 // Screens
 import HomeScreen from "@/components/screens/HomeScreen";
 import CalendarScreen from "@/components/screens/CalendarScreen";
-import VisualPreferencesPanel from "@/components/VisualPreferencesPanel";
 import SettingsScreen, { FREE_GRADIENTS } from "@/components/screens/SettingsScreen";
+import ProfileScreen from "@/components/screens/ProfileScreen";
+import MusicScreen from "@/components/screens/MusicScreen";
+import NotesScreen from "@/components/screens/NotesScreen";
+import MagicAIScreen from "@/components/screens/MagicAIScreen";
+import EventWorkspace from "@/components/screens/EventWorkspace";
+import VisualPreferencesPanel from "@/components/VisualPreferencesPanel";
+
+type ModalId = 'calendar' | 'settings' | 'profile' | 'music' | 'notes' | 'magic-ai' | 'event-workspace' | null;
 
 export default function App() {
   // ═══ AUTH ═══
@@ -28,24 +35,39 @@ export default function App() {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const isInStudio = googleAuth.isAuthenticated || isDemoMode;
 
-  // ═══ SPOTIFY MODAL ═══
+  // ═══ MODAL SYSTEM ═══
+  const [activeModal, setActiveModal] = useState<ModalId>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [isSpotifyModalOpen, setIsSpotifyModalOpen] = useState(false);
 
-  // Auto-close modal on successful Spotify link
+  // Auto-close Spotify modal on successful link
   useEffect(() => {
     if (spotifyAuth.isAuthenticated && isSpotifyModalOpen) {
       setIsSpotifyModalOpen(false);
     }
   }, [spotifyAuth.isAuthenticated, isSpotifyModalOpen]);
 
-  // Dock music click → always opens Spotify modal
-  const handleMusicClick = () => setIsSpotifyModalOpen(true);
+  // ═══ DOCK ACTION HANDLER ═══
+  const handleDockAction = (action: string) => {
+    if (action === 'home') {
+      setActiveModal(null); // Close modal, go to home
+      return;
+    }
+    if (action === 'music') {
+      if (spotifyAuth.isAuthenticated) {
+        setActiveModal('music');
+      } else {
+        setIsSpotifyModalOpen(true);
+      }
+      return;
+    }
+    setActiveModal(action as ModalId);
+  };
 
   // ═══ SIDEBAR — Hover-triggered ═══
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Open sidebar when mouse hits left edge (200ms delay)
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (e.clientX <= 8 && !isSidebarOpen) {
@@ -56,7 +78,6 @@ export default function App() {
           }, 200);
         }
       } else if (e.clientX > 8 && sidebarTimerRef.current) {
-        // Mouse moved away before delay finished → cancel
         clearTimeout(sidebarTimerRef.current);
         sidebarTimerRef.current = null;
       }
@@ -71,13 +92,11 @@ export default function App() {
   // ═══ THEME ═══
   const { theme } = useBackground()!;
 
-  // ═══ ROUTING ═══
-  const [currentScreen, setCurrentScreen] = useState('home');
+  // ═══ PREFERENCES SIDEBAR ═══
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
   // ═══ DOCK VISIBILITY ═══
   const [isDockVisible, setIsDockVisible] = useState(false);
-
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setIsDockVisible((prev) => {
@@ -102,7 +121,9 @@ export default function App() {
   };
 
   const displayMode = tempBgMode || theme.activeBgMode;
-  const shouldHideWidgets = isPreferencesOpen || currentScreen === 'settings';
+
+  // Pomodoro hides when ANY modal/screen/preference is open
+  const shouldHideWidgets = activeModal !== null || isPreferencesOpen;
 
   // ═══ AUTH GATE ═══
   if (googleAuth.isLoading || spotifyAuth.isLoading) {
@@ -127,14 +148,15 @@ export default function App() {
       />
     );
   }
-
+  // Dentro de tu componente App
+  
   // ═══ DESKTOP ═══
   return (
     <div
       className="relative w-full h-screen overflow-hidden font-sans antialiased text-white bg-[#050b14] transition-colors duration-1000"
       style={{ '--primary-tint': theme.activeTint || '#ffffff' } as any}
     >
-      {/* Background */}
+      {/* Background Layer */}
       <div className="absolute inset-0 z-0">
         <Suspense fallback={<div className="absolute inset-0 bg-slate-950" />}>
           {displayMode === 'aurora' && (
@@ -153,8 +175,7 @@ export default function App() {
           <div className="absolute inset-0 transition-colors duration-1000" style={{ backgroundColor: theme.solidColor }} />
         )}
         {displayMode === 'image' && (
-          <div
-            className="absolute inset-0 bg-cover bg-center transition-all duration-1000 scale-105"
+          <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000 scale-105"
             style={{ backgroundImage: `url('${theme.imageParameters.url}')`, filter: `blur(${theme.imageParameters.blur}px)` }}
           />
         )}
@@ -163,21 +184,17 @@ export default function App() {
       {/* Global Tint */}
       <div
         className="fixed inset-0 z-0 pointer-events-none transition-all duration-1000"
-        style={{
-          backgroundColor: theme.activeTint || 'transparent',
-          opacity: theme.activeTint ? 0.3 : 0,
-          mixBlendMode: 'overlay'
-        }}
+        style={{ backgroundColor: theme.activeTint || 'transparent', opacity: theme.activeTint ? 0.3 : 0, mixBlendMode: 'overlay' }}
       />
 
       {/* Flash */}
       <div className={`fixed inset-0 z-[9999] pointer-events-none transition-opacity duration-500
-          ${flashColor === 'study' ? 'bg-white opacity-20' : ''}
-          ${flashColor === 'break' ? 'bg-cyan-300 opacity-20' : ''}
-          ${flashColor === null ? 'opacity-0' : ''}
+        ${flashColor === 'study' ? 'bg-white opacity-20' : ''}
+        ${flashColor === 'break' ? 'bg-cyan-300 opacity-20' : ''}
+        ${flashColor === null ? 'opacity-0' : ''}
       `} />
 
-      {/* Pomodoro */}
+      {/* Pomodoro — hidden when ANY modal is open */}
       <AnimatePresence>
         {!shouldHideWidgets && (
           <motion.div
@@ -186,62 +203,90 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, scale: 0.9, filter: "blur(6px)" }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className={`absolute top-1/2 right-[5%] md:right-8 -translate-y-1/2 z-[60] flex-shrink-0 origin-right ${
-              currentScreen === 'home'
-                ? 'pointer-events-auto scale-90 md:scale-100'
-                : 'opacity-40 pointer-events-none scale-75 md:scale-95 translate-x-12'
-            }`}
+            className="absolute top-1/2 right-[5%] md:right-8 -translate-y-1/2 z-[60] flex-shrink-0 origin-right pointer-events-auto scale-90 md:scale-100"
           >
             <PomodoroTimer onCycleComplete={triggerFlash} />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Screen Router */}
+      {/* Home Screen (always rendered underneath) */}
       <main className="relative z-50 w-full h-full pointer-events-none">
         <div className="absolute top-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/5 text-[10px] tracking-[0.3em] uppercase opacity-40 z-[100]">
           Pomody Studio OS
         </div>
 
-        <AnimatePresence mode="wait">
-          {currentScreen === 'home' && (
+        <AnimatePresence>
+          {activeModal === null && (
             <motion.div
-              key="home"
-              initial={{ opacity: 0, scale: 0.95, filter: "blur(5px)" }}
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, scale: 0.95, filter: "blur(5px)" }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              key="home-screen"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
               className="absolute inset-0 pointer-events-none z-50"
             >
               <HomeScreen isDockVisible={isDockVisible} />
             </motion.div>
           )}
-          {currentScreen === 'calendar' && (
-            <motion.div
-              key="calendar"
-              initial={{ opacity: 0, scale: 0.95, filter: "blur(5px)" }}
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, scale: 0.95, filter: "blur(5px)" }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute inset-0 pointer-events-none z-50"
-            >
-              <CalendarScreen />
-            </motion.div>
-          )}
-          {currentScreen === 'settings' && (
-            <motion.div
-              key="settings"
-              initial={{ opacity: 0, scale: 0.95, filter: "blur(5px)" }}
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, scale: 0.95, filter: "blur(5px)" }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute inset-0 pointer-events-none z-50"
-            >
-              <SettingsScreen />
-            </motion.div>
-          )}
         </AnimatePresence>
       </main>
+
+      {/* ═══ MODAL OVERLAY SYSTEM ═══ */}
+      <AnimatePresence>
+        {activeModal !== null && (
+          <>
+            {/* Backdrop — click to close */}
+            <motion.div
+              key="modal-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setActiveModal(null)}
+              className="fixed inset-0 z-[70] bg-black/30 backdrop-blur-[2px]"
+            />
+
+            {/* Modal content */}
+            <motion.div
+              key={`modal-${activeModal}`}
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              className="fixed inset-0 z-[80] pointer-events-none"
+            >
+              {activeModal === 'calendar' && (
+                <CalendarScreen 
+                  onEventClick={(id) => { setSelectedEventId(id); setActiveModal('event-workspace'); }} 
+                  onClose={() => setActiveModal(null)}
+                />
+              )}
+              {activeModal === 'event-workspace' && selectedEventId && (
+                <EventWorkspace
+                  eventId={selectedEventId}
+                  onClose={() => { setSelectedEventId(null); setActiveModal('calendar'); }}
+                  onStartPomodoro={(id, title) => { console.log('🎯 Pomodoro for:', title, id); setActiveModal(null); }}
+                />
+              )}
+              {activeModal === 'settings' && <SettingsScreen onClose={() => setActiveModal(null)} />}
+              {activeModal === 'music' && <MusicScreen onClose={() => setActiveModal(null)} />}
+              {activeModal === 'notes' && <NotesScreen onClose={() => setActiveModal(null)} />}
+              {activeModal === 'magic-ai' && (
+                <MagicAIScreen onClose={() => setActiveModal(null)} onOpenProfile={() => setActiveModal('profile')} />
+              )}
+              {activeModal === 'profile' && (
+                <ProfileScreen
+                  user={googleAuth.user}
+                  onLogout={() => { googleAuth.logout(); setActiveModal(null); }}
+                  onClose={() => setActiveModal(null)}
+                  onOpenMagicAI={() => setActiveModal('magic-ai')}
+                />
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Sidebar — hover-triggered, always available */}
       <SidebarControl
@@ -250,7 +295,7 @@ export default function App() {
         onMouseLeave={() => setIsSidebarOpen(false)}
       />
 
-      {/* Spotify Connect Modal — opened from Dock */}
+      {/* Spotify Connect Modal */}
       <SpotifyConnectModal
         isOpen={isSpotifyModalOpen}
         onClose={() => setIsSpotifyModalOpen(false)}
@@ -258,16 +303,13 @@ export default function App() {
         error={spotifyAuth.error}
       />
 
-      {/* Preferences Panel */}
-      <VisualPreferencesPanel
-        onToggle={(isOpen) => setIsPreferencesOpen(isOpen)}
-      />
+      {/* Visual Preferences Panel */}
+      <VisualPreferencesPanel onToggle={(isOpen) => setIsPreferencesOpen(isOpen)} />
 
       {/* Floating Dock */}
       <FloatingDock
         isVisible={isDockVisible}
-        onScreenChange={setCurrentScreen}
-        onMusicClick={handleMusicClick}
+        onAction={handleDockAction}
         isSpotifyLinked={spotifyAuth.isAuthenticated}
       />
     </div>

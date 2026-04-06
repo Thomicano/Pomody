@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Sparkles, PaintBucket, LayoutGrid, Lock, Image as ImageIcon, Volume2, Play, Upload } from 'lucide-react';
+import { Sparkles, PaintBucket, LayoutGrid, Lock, Image as ImageIcon, Volume2, Play, Upload, X } from 'lucide-react';
 import { useBackground } from '@/hooks/useBackground';
 import type { BgMode } from '@/hooks/useBackground';
 export const FREE_IMAGES = [
@@ -30,8 +30,12 @@ export const SOUND_OPTIONS = [
   { id: 'zipper.mp3', label: 'Zip Swipe' }
 ];
 
-export default function SettingsScreen() {
-  const { theme, setTheme, handleImageUpload } = useBackground();
+interface SettingsScreenProps {
+  onClose?: () => void;
+}
+
+export default function SettingsScreen({ onClose }: SettingsScreenProps) {
+  const { theme, setTheme, handleImageUpload } = useBackground()!;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isPremium = true;
 
@@ -42,8 +46,16 @@ export default function SettingsScreen() {
   };
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-auto mt-4 px-4">
-      <div className="w-[85vw] max-w-7xl h-[85vh] bg-white/80 backdrop-blur-xl border border-white/60 rounded-[32px] shadow-[0_8px_40px_rgba(0,0,0,0.1)] flex overflow-hidden">
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-auto mt-4 px-4 z-[80] relative">
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="absolute top-8 right-6 p-2 bg-white/50 hover:bg-white/80 rounded-full text-slate-500 hover:text-slate-800 backdrop-blur-xl border border-slate-200/50 shadow-sm transition-all z-[90]"
+        >
+          <X size={18} />
+        </button>
+      )}
+      <div className="w-full max-w-5xl h-[85vh] bg-white/80 backdrop-blur-xl border border-white/60 rounded-[32px] shadow-[0_8px_40px_rgba(0,0,0,0.1)] flex overflow-hidden">
 
         {/* Left Sidebar Menu */}
         <div className="w-1/3 md:w-1/4 border-r border-slate-200 p-8 flex flex-col gap-8 bg-white/40 hidden md:flex">
@@ -57,10 +69,7 @@ export default function SettingsScreen() {
               <Sparkles className="w-4 h-4 text-cyan-500" />
               <span className="text-xs uppercase tracking-widest font-medium">Entorno y Audio</span>
             </button>
-            <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-slate-600 transition-colors opacity-50 cursor-not-allowed">
-              <Lock className="w-4 h-4" />
-              <span className="text-xs uppercase tracking-widest">Cuenta (Pronto)</span>
-            </button>
+
           </div>
         </div>
 

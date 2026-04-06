@@ -6,37 +6,32 @@ interface DockItem {
   id: string;
   title: string;
   icon: any;
-  screenId?: string;
-  action?: string;
+  action: string;
 }
 
 const DOCK_ITEMS: DockItem[] = [
-  { id: '1', title: 'Home', icon: Home, screenId: 'home' },
-  { id: '2', title: 'Schedule', icon: Calendar, screenId: 'calendar' },
-  { id: '3', title: 'Magic AI', icon: Sparkles, screenId: 'home' },
-  { id: '4', title: 'Music', icon: Music, action: 'music' },
-  { id: '5', title: 'Notes', icon: StickyNote, screenId: 'home' },
-  { id: '6', title: 'Settings', icon: Settings, screenId: 'settings' },
-  { id: '7', title: 'Profile', icon: User, screenId: 'home' },
+  { id: '1', title: 'Home', icon: Home, action: 'home' },
+  { id: '2', title: 'Calendario', icon: Calendar, action: 'calendar' },
+  { id: '3', title: 'Magic AI', icon: Sparkles, action: 'magic-ai' },
+  { id: '4', title: 'Música', icon: Music, action: 'music' },
+  { id: '5', title: 'Notas', icon: StickyNote, action: 'notes' },
+  { id: '6', title: 'Ajustes', icon: Settings, action: 'settings' },
+  { id: '7', title: 'Perfil', icon: User, action: 'profile' },
 ];
 
 function DockIcon({
   mouseX,
   title,
   icon: Icon,
-  screenId,
   action,
-  onScreenChange,
   onAction,
   isGlowing = false,
 }: {
   mouseX: any;
   title: string;
   icon: any;
-  screenId?: string;
-  action?: string;
-  onScreenChange?: (screen: string) => void;
-  onAction?: (action: string) => void;
+  action: string;
+  onAction: (action: string) => void;
   isGlowing?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -49,14 +44,6 @@ function DockIcon({
   const widthSync = useTransform(distance, [-150, 0, 150], [40, 64, 40]);
   const width = useSpring(widthSync, { mass: 0.1, stiffness: 150, damping: 12 });
   const [hovered, setHovered] = useState(false);
-
-  const handleClick = () => {
-    if (action && onAction) {
-      onAction(action);
-    } else if (screenId && onScreenChange) {
-      onScreenChange(screenId);
-    }
-  };
 
   return (
     <div className="relative group flex items-center justify-center">
@@ -71,7 +58,6 @@ function DockIcon({
         </motion.div>
       )}
 
-      {/* Cyan glow pulse — only when Spotify is linked */}
       {isGlowing && (
         <motion.div
           className="absolute inset-0 rounded-2xl"
@@ -98,7 +84,7 @@ function DockIcon({
         }`}
       >
         <button
-          onClick={handleClick}
+          onClick={() => onAction(action)}
           className={`w-full h-full flex items-center justify-center transition-colors duration-200 outline-none ${
             isGlowing ? 'text-[#00f2ff]/80 hover:text-[#00f2ff]' : 'text-white/80 hover:text-white'
           }`}
@@ -112,20 +98,14 @@ function DockIcon({
 
 export default function FloatingDock({
   isVisible = true,
-  onScreenChange,
-  onMusicClick,
+  onAction,
   isSpotifyLinked = false,
 }: {
   isVisible?: boolean;
-  onScreenChange?: (screen: string) => void;
-  onMusicClick?: () => void;
+  onAction: (action: string) => void;
   isSpotifyLinked?: boolean;
 }) {
   const mouseX = useMotionValue(Infinity);
-
-  const handleAction = (action: string) => {
-    if (action === 'music' && onMusicClick) onMusicClick();
-  };
 
   return (
     <motion.div
@@ -144,8 +124,7 @@ export default function FloatingDock({
             key={item.id}
             mouseX={mouseX}
             {...item}
-            onScreenChange={onScreenChange}
-            onAction={handleAction}
+            onAction={onAction}
             isGlowing={item.action === 'music' && isSpotifyLinked}
           />
         ))}

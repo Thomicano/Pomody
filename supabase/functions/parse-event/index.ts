@@ -1,131 +1,74 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { getAuthUser } from '../_shared/auth.ts';
-import { createUserClient } from '../_shared/supabaseClient.ts';
-import { validatePayload, verifyPremiumPlan } from '../_shared/validators.ts';
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY') ?? '';
 
-serve(async (req) => {
-  // 1. Manejo automático de CORS (Preflight requests de Next.js/React)
+Deno.serve(async (req) => {
   const isOptions = handleCors(req);
   if (isOptions) return isOptions;
 
   try {
-    // 2. Extraer usuario (Valida el Token)
-    const user = await getAuthUser(req);
+    console.log("🚀 1. Iniciando con Groq (Llama 3.3)");
+    const { input, localTime } = await req.json();
 
-    // 3. Proteger la ruta (Opcional según tu designación de Feature)
-    // const isPremium = await verifyPremiumPlan(user.id);
-    // if (!isPremium) {
-    //   throw new Error("403: Requiere Plan Premium para invocar a la IA.");
-    // }
-
-    // 4. Leer y sanitizar el Input de la Request
-    const body = await req.json();
-    validatePayload(body, ['input']);
-    const { input } = body;
-
-    if (!GEMINI_API_KEY) {
-      throw new Error("500: Fallo de configuración en Backend (API Key IA faltante).");
-    }
-
-    // 5. Invocación a Gemini 1.5 Flash - Forzando JSON 
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    
-    // Configuración del System Prompt para asegurar calidad y formato de salida
-    const promptDef = `
-      Eres un asistente experto en organizar fechas de estudio.
-      Del input proporcionado, extrae y arma un JSON ESTRICTO bajo este diseño:
-      {
-        "title": "título derivado claro",
-        "start_time": "fecha/hora ISO si la deduces o te la dan",
-        "end_time": "fecha/hora ISO calculada exactamente 1 hora después del start_time",
-        "calendar_id": "nombre del calendario al que pertenece, si no se infiere devuelve 'Personal'",
-        "type": "exam" | "hw" | "class" | "other"
-      }
-      Input usuario: ${input}
-    `;
-
-    const aiResponse = await fetch(geminiEndpoint, {
+    // Groq usa el formato de OpenAI, que es el estándar de la industria
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: promptDef }] }],
-        generationConfig: {
-          response_mime_type: "application/json" // Core feature requerida
-        }
-      }),
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { 
+            role: "system", 
+            content: `Hoy es ${localTime}. Extrae un JSON de la entrada del usuario. 
+            Responde ÚNICAMENTE el JSON: {"title": "string", "start": "ISO_DATETIME", "type": "EXAMEN" | "TAREA"}` 
+          },
+          { role: "user", content: input }
+        ],
+        temperature: 0, // Para que sea preciso y no invente
+        stream: false
+      })
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      throw new Error(`502: Bad Gateway. La Red Neuronal se rehusó a procesar: ${errorText}`);
-    }
-
-    const aiData = await aiResponse.json();
-    const structuredResultText = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const aiData = await res.json();
     
-    if (!structuredResultText) throw new Error("500: Formato de AI inesperado.");
+    if (aiData.error) throw new Error(`Groq Error: ${aiData.error.message}`);
 
-    // 6. Castear y Validar Formato JSON (Sanitización)
-    const jsonEvent = JSON.parse(structuredResultText);
+    const jsonEvent = JSON.parse(aiData.choices[0].message.content);
+    console.log("🎯 2. JSON recibido:", jsonEvent.title);
 
-    if (!jsonEvent.title || !jsonEvent.start_time) {
-        throw new Error("500: AI devolvió objeto malformado.");
-    }
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Calcula 1 hora después si la IA omitió calcularlo
-    let calculatedEndTime = jsonEvent.end_time;
-    if (!calculatedEndTime) {
-        const startDate = new Date(jsonEvent.start_time);
-        if (!isNaN(startDate.getTime())) {
-            startDate.setHours(startDate.getHours() + 1);
-            calculatedEndTime = startDate.toISOString();
-        }
-    }
-
-    // 7. Guardar en Base de Datos vía Supabase Creado por Usuario (Respeta RLS)
-    const supabase = createUserClient(req);
-    const { data: dbInsert, error: dbError } = await supabase
-      .from('events') // Updated to standard 'events' table
+    const { data, error: dbError } = await supabaseAdmin
+      .from('events')
       .insert({
-        user_id: user.id,
-        calendar_id: jsonEvent.calendar_id || 'Personal',
+        user_id: 'eefdff98-075c-4f4a-8cfd-c168dec1b2e0', 
+        calendar_id: '69d923a4-202e-4154-8adf-8ece31269023',
         title: jsonEvent.title,
-        start_time: jsonEvent.start_time,
-        end_time: calculatedEndTime || null,
-        event_type: jsonEvent.type || 'other',
-        color: 'blue',
-        all_day: false
+        start_time: jsonEvent.start,
+        end_time: new Date(new Date(jsonEvent.start).getTime() + 3600000).toISOString(),
+        event_type: (jsonEvent.type || 'TAREA').toUpperCase(),
+        description: 'Sync Pomody (Groq AI)',
+        color: 'blue'
       })
-      .select()
-      .single();
+      .select().single();
 
-    if (dbError) {
-      console.error(dbError);
-      throw new Error("500: Fallo de Inserción DB.");
-    }
+    if (dbError) throw dbError;
 
-    // 8. Retorno Glorioso y Tipado
-    return new Response(JSON.stringify({ 
-      success: true, 
-      event: dbInsert 
-    }), { 
-      status: 200, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    console.log("🎉 3. EVENTO GUARDADO!");
+    return new Response(JSON.stringify({ success: true, event: data }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
   } catch (err: any) {
-    console.error("ParseEvent Edge Function Error:", err);
-    
-    // Parseo de Código HTTP Estándar de Errores propios 
-    const isCustomError = typeof err.message === 'string' && /^\d{3}:/.test(err.message);
-    const status = isCustomError ? parseInt(err.message.substring(0, 3)) : 500;
-    const msg = isCustomError ? err.message.substring(4) : "Internal Server Error";
-
-    return new Response(JSON.stringify({ error: msg }), {
-      status, 
+    console.error("💥 ERROR:", err.message);
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
