@@ -1,11 +1,18 @@
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PomodoroTimer from "@/components/PomodoroTimer";
 import Aurora from "@/components/ui/Aurora";
-import MusicWidget from "./features/music/components/MusicWidget";
 import FloatingDock from "@/components/FloatingDock";
 import { useBackground } from '@/hooks/useBackground';
+
+// Auth
 import AuthScreen from "./features/auth/components/AuthScreen";
+import { useGoogleAuth } from "./features/auth/hooks/useGoogleAuth";
+import { useSpotifyAuth } from "./features/auth/hooks/useSpotifyAuth";
+
+// Music
+import SpotifyConnectModal from "./features/music/components/SpotifyConnectModal";
+import SidebarControl from "./features/music/components/SidebarControl";
 
 // Screens
 import HomeScreen from "@/components/screens/HomeScreen";
@@ -14,16 +21,61 @@ import VisualPreferencesPanel from "@/components/VisualPreferencesPanel";
 import SettingsScreen, { FREE_GRADIENTS } from "@/components/screens/SettingsScreen";
 
 export default function App() {
-  // 🔐 Auth State
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // ═══ AUTH ═══
+  const googleAuth = useGoogleAuth();
+  const spotifyAuth = useSpotifyAuth();
 
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const isInStudio = googleAuth.isAuthenticated || isDemoMode;
+
+  // ═══ SPOTIFY MODAL ═══
+  const [isSpotifyModalOpen, setIsSpotifyModalOpen] = useState(false);
+
+  // Auto-close modal on successful Spotify link
+  useEffect(() => {
+    if (spotifyAuth.isAuthenticated && isSpotifyModalOpen) {
+      setIsSpotifyModalOpen(false);
+    }
+  }, [spotifyAuth.isAuthenticated, isSpotifyModalOpen]);
+
+  // Dock music click → always opens Spotify modal
+  const handleMusicClick = () => setIsSpotifyModalOpen(true);
+
+  // ═══ SIDEBAR — Hover-triggered ═══
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Open sidebar when mouse hits left edge (200ms delay)
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.clientX <= 8 && !isSidebarOpen) {
+        if (!sidebarTimerRef.current) {
+          sidebarTimerRef.current = setTimeout(() => {
+            setIsSidebarOpen(true);
+            sidebarTimerRef.current = null;
+          }, 200);
+        }
+      } else if (e.clientX > 8 && sidebarTimerRef.current) {
+        // Mouse moved away before delay finished → cancel
+        clearTimeout(sidebarTimerRef.current);
+        sidebarTimerRef.current = null;
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (sidebarTimerRef.current) clearTimeout(sidebarTimerRef.current);
+    };
+  }, [isSidebarOpen]);
+
+  // ═══ THEME ═══
   const { theme } = useBackground()!;
 
-  // Routing State
+  // ═══ ROUTING ═══
   const [currentScreen, setCurrentScreen] = useState('home');
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
-  // Dock Logic
+  // ═══ DOCK VISIBILITY ═══
   const [isDockVisible, setIsDockVisible] = useState(false);
 
   useEffect(() => {
@@ -38,50 +90,51 @@ export default function App() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  // ═══ POMODORO ═══
   const [tempBgMode, setTempBgMode] = useState<null | 'aurora'>(null);
   const [flashColor, setFlashColor] = useState<null | 'study' | 'break'>(null);
 
   const triggerFlash = (color: 'study' | 'break') => {
     setFlashColor(color);
     setTimeout(() => setFlashColor(null), 600);
-
-    if (color === 'break' && theme.autoAuroraOnBreak) {
-      setTempBgMode('aurora');
-    } else if (color === 'study') {
-      setTempBgMode(null);
-    }
+    if (color === 'break' && theme.autoAuroraOnBreak) setTempBgMode('aurora');
+    else if (color === 'study') setTempBgMode(null);
   };
 
   const displayMode = tempBgMode || theme.activeBgMode;
-
-  // 🔒 True cuando hay cualquier overlay/pantalla que requiere fondo limpio
   const shouldHideWidgets = isPreferencesOpen || currentScreen === 'settings';
 
-  // ─── AUTH GATE ───
-  if (!isAuthenticated) {
+  // ═══ AUTH GATE ═══
+  if (googleAuth.isLoading || spotifyAuth.isLoading) {
     return (
-      <AnimatePresence mode="wait">
+      <div className="w-full h-screen bg-[#030810] flex items-center justify-center">
         <motion.div
-          key="auth-screen"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <AuthScreen onEnter={() => setIsAuthenticated(true)} />
-        </motion.div>
-      </AnimatePresence>
+          className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+        />
+      </div>
     );
   }
 
+  if (!isInStudio) {
+    return (
+      <AuthScreen
+        isLoading={false}
+        error={googleAuth.error}
+        onLogin={googleAuth.login}
+        onSkip={() => setIsDemoMode(true)}
+      />
+    );
+  }
+
+  // ═══ DESKTOP ═══
   return (
     <div
       className="relative w-full h-screen overflow-hidden font-sans antialiased text-white bg-[#050b14] transition-colors duration-1000"
       style={{ '--primary-tint': theme.activeTint || '#ffffff' } as any}
     >
-
-      {/* 1. Capa de Fondo 
-       */}
+      {/* Background */}
       <div className="absolute inset-0 z-0">
         <Suspense fallback={<div className="absolute inset-0 bg-slate-950" />}>
           {displayMode === 'aurora' && (
@@ -91,16 +144,14 @@ export default function App() {
             />
           )}
         </Suspense>
-
         {displayMode === 'gradient' && (
-          <div className={`absolute inset-0 bg-gradient-to-br transition-colors duration-1000 ${FREE_GRADIENTS.find(g => g.id === theme.activeGradient)?.class || FREE_GRADIENTS[0].class
-            }`} />
+          <div className={`absolute inset-0 bg-gradient-to-br transition-colors duration-1000 ${
+            FREE_GRADIENTS.find(g => g.id === theme.activeGradient)?.class || FREE_GRADIENTS[0].class
+          }`} />
         )}
-
         {displayMode === 'solid' && (
           <div className="absolute inset-0 transition-colors duration-1000" style={{ backgroundColor: theme.solidColor }} />
         )}
-
         {displayMode === 'image' && (
           <div
             className="absolute inset-0 bg-cover bg-center transition-all duration-1000 scale-105"
@@ -109,7 +160,7 @@ export default function App() {
         )}
       </div>
 
-      {/* Capa 1: Filtro de Tinte Global */}
+      {/* Global Tint */}
       <div
         className="fixed inset-0 z-0 pointer-events-none transition-all duration-1000"
         style={{
@@ -119,14 +170,14 @@ export default function App() {
         }}
       />
 
-      {/* 2. Flash Global */}
+      {/* Flash */}
       <div className={`fixed inset-0 z-[9999] pointer-events-none transition-opacity duration-500
           ${flashColor === 'study' ? 'bg-white opacity-20' : ''}
           ${flashColor === 'break' ? 'bg-cyan-300 opacity-20' : ''}
           ${flashColor === null ? 'opacity-0' : ''}
       `} />
 
-      {/* 3. Lateral Derecho: Pomodoro — desmontado del DOM cuando cualquier overlay está abierto */}
+      {/* Pomodoro */}
       <AnimatePresence>
         {!shouldHideWidgets && (
           <motion.div
@@ -146,10 +197,8 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 4. Enrutador Dinámico (Pantallas) */}
+      {/* Screen Router */}
       <main className="relative z-50 w-full h-full pointer-events-none">
-
-        {/* Banner Superior OS */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 px-8 py-3 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/5 text-[10px] tracking-[0.3em] uppercase opacity-40 z-[100]">
           Pomody Studio OS
         </div>
@@ -167,7 +216,6 @@ export default function App() {
               <HomeScreen isDockVisible={isDockVisible} />
             </motion.div>
           )}
-
           {currentScreen === 'calendar' && (
             <motion.div
               key="calendar"
@@ -180,7 +228,6 @@ export default function App() {
               <CalendarScreen />
             </motion.div>
           )}
-
           {currentScreen === 'settings' && (
             <motion.div
               key="settings"
@@ -196,28 +243,33 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* 5. Reproductor Flotante — desmontado del DOM cuando cualquier overlay está abierto */}
-      <AnimatePresence>
-        {!shouldHideWidgets && (
-          <motion.div
-            key="music-widget"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <MusicWidget />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Sidebar — hover-triggered, always available */}
+      <SidebarControl
+        isOpen={isSidebarOpen}
+        onMouseEnter={() => setIsSidebarOpen(true)}
+        onMouseLeave={() => setIsSidebarOpen(false)}
+      />
 
-      {/* 🟢 FIX: Panel Lateral Dedicado (Independiente del Routing Full-Screen) */}
+      {/* Spotify Connect Modal — opened from Dock */}
+      <SpotifyConnectModal
+        isOpen={isSpotifyModalOpen}
+        onClose={() => setIsSpotifyModalOpen(false)}
+        onConnect={spotifyAuth.login}
+        error={spotifyAuth.error}
+      />
+
+      {/* Preferences Panel */}
       <VisualPreferencesPanel
         onToggle={(isOpen) => setIsPreferencesOpen(isOpen)}
       />
 
-      {/* 6. Floating Dock Inteligente (Actúa como Navegador) */}
-      <FloatingDock isVisible={isDockVisible} onScreenChange={setCurrentScreen} />
+      {/* Floating Dock */}
+      <FloatingDock
+        isVisible={isDockVisible}
+        onScreenChange={setCurrentScreen}
+        onMusicClick={handleMusicClick}
+        isSpotifyLinked={spotifyAuth.isAuthenticated}
+      />
     </div>
   );
 }

@@ -1,34 +1,44 @@
 import { useEffect, useState, useRef } from "react";
 import { createMusicEngine } from "../lib/MusicEngine";
+import { getValidAccessToken } from "../../auth/tokenManager";
 import type { PlayerState, MusicAdapter } from "../../types/types";
 
-const HARDCODED_TOKEN = "BQDKRkp9M0NwJfkOIYYtaRrpigrjGjQZNn80QRTT9nxSU_6Nz3lvIUVjRGybGVEMZELBS8Af2KsX_Bw_kse9A1rzK70-JShki-_kOENMtZUVoGl7sxu5EhBqk6jC-upqLEiTWpCr3wzdvDoE9bbZMJZ8VPLBpaJiMqAVcPlhCZFqCbIFCh9BGMgTVqGvskcf9TF_Jm2E_SbL316Fk_kbYH751559p_bFb_2TNjeyPjZ0F6fUm9IZ5TWqzTyoe8xmqvC3fPjagemkUw"
-// Por ahora pasamos un token de prueba hardcodeado o vacío hasta que conectemos el login real
-export function useMusicPlayer(isPremium: boolean, token?: string) {
+export function useMusicPlayer(isPremium: boolean) {
   const [state, setState] = useState<PlayerState | null>(null);
-  // Usamos useRef para mantener la instancia del motor sin causar re-renders infinitos
   const engineRef = useRef<MusicAdapter | null>(null);
 
   useEffect(() => {
-    // Inicializamos el "Cerebro"
-    console.log("🛠️ [Hook] Intentando arrancar con Hardcoded Token");
-    const engine = createMusicEngine(true, isPremium, HARDCODED_TOKEN);
+    let cancelled = false;
 
-    // Lo guardamos en la referencia
-    engineRef.current = engine;
+    const init = async () => {
+      // Intentamos obtener un token real (auto-refresh incluido)
+      const token = await getValidAccessToken();
 
-    // Nos suscribimos para que React se entere cada vez que cambia la canción
-    engine.subscribe((newState) => {
-      setState(newState);
-    });
+      if (cancelled) return;
+
+      const useReal = !!token && token.length > 20;
+      console.log(useReal
+        ? `🎵 [MusicPlayer] Arrancando con token real (${token!.substring(0, 10)}...)`
+        : "🎵 [MusicPlayer] Arrancando en modo Mock (sin token válido)"
+      );
+
+      const engine = createMusicEngine(useReal, isPremium, token || "");
+      engineRef.current = engine;
+
+      engine.subscribe((newState) => {
+        if (!cancelled) setState(newState);
+      });
+    };
+
+    init();
 
     return () => {
-      // Acá iría la lógica para limpiar/apagar el reproductor si el usuario cierra el widget
+      cancelled = true;
     };
   }, [isPremium]);
 
   return {
     state,
-    engine: engineRef.current
+    engine: engineRef.current,
   };
 }

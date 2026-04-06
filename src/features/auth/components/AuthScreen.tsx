@@ -1,36 +1,21 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
-import { Music, Zap, Headphones } from "lucide-react";
+import { Zap, Headphones, Brain } from "lucide-react";
 import Aurora from "@/components/ui/Aurora";
-import { useSpotifyAuth } from "../hooks/useSpotifyAuth";
 
 interface AuthScreenProps {
-  onEnter: () => void;
+  isLoading: boolean;
+  error: string | null;
+  onLogin: () => void;
+  onSkip: () => void;
 }
 
-export default function AuthScreen({ onEnter }: AuthScreenProps) {
-  const { login } = useSpotifyAuth();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleLogin = async () => {
-    setIsLoading(true);
-    try {
-      await login();
-    } catch {
-      // Si falla el redirect, dejamos entrar al modo demo
-      setIsLoading(false);
-      onEnter();
-    }
-  };
-
+export default function AuthScreen({ isLoading, error, onLogin, onSkip }: AuthScreenProps) {
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-[#030810]">
-      {/* Aurora Background — más lenta y sutil para la landing */}
-      <div className="absolute inset-0 z-0 opacity-70">
-        <Aurora colorStops={["#0ea5e9", "#6366f1"]} speed={0.4} />
+    <div className="relative w-full h-screen overflow-hidden bg-[#021526]">
+      <div className="absolute inset-0 z-0 opacity-90">
+        <Aurora colorStops={["#00f2ff", "#0ea5e9", "#6366f1"]} speed={0.5} />
       </div>
 
-      {/* Noise/grain overlay for depth */}
       <div
         className="absolute inset-0 z-[1] opacity-[0.03] pointer-events-none"
         style={{
@@ -38,25 +23,20 @@ export default function AuthScreen({ onEnter }: AuthScreenProps) {
         }}
       />
 
-      {/* Radial spotlight from center */}
       <div
         className="absolute inset-0 z-[2] pointer-events-none"
         style={{
-          background:
-            "radial-gradient(ellipse at 50% 40%, transparent 0%, rgba(3,8,16,0.6) 60%, rgba(3,8,16,0.95) 100%)",
+          background: "radial-gradient(ellipse at 50% 40%, transparent 0%, rgba(3,8,16,0.6) 60%, rgba(3,8,16,0.95) 100%)",
         }}
       />
 
-      {/* Main Content */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full px-6">
-        {/* Logo / Brand */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           className="flex flex-col items-center mb-12"
         >
-          {/* Logo icon cluster */}
           <div className="relative mb-6">
             <motion.div
               className="w-20 h-20 rounded-3xl bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-[0_0_60px_rgba(14,165,233,0.15)]"
@@ -65,7 +45,6 @@ export default function AuthScreen({ onEnter }: AuthScreenProps) {
             >
               <Headphones className="w-9 h-9 text-cyan-400/80" strokeWidth={1.5} />
             </motion.div>
-            {/* Floating particles */}
             <motion.div
               className="absolute -top-2 -right-2 w-3 h-3 rounded-full bg-cyan-400/40"
               animate={{ y: [-2, 4, -2], opacity: [0.4, 0.8, 0.4] }}
@@ -78,7 +57,6 @@ export default function AuthScreen({ onEnter }: AuthScreenProps) {
             />
           </div>
 
-          {/* Title */}
           <h1 className="text-[28px] md:text-[36px] font-light text-white tracking-[0.25em] uppercase">
             Pomody
           </h1>
@@ -87,7 +65,6 @@ export default function AuthScreen({ onEnter }: AuthScreenProps) {
           </p>
         </motion.div>
 
-        {/* Glass Card */}
         <motion.div
           initial={{ opacity: 0, y: 30, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -98,8 +75,8 @@ export default function AuthScreen({ onEnter }: AuthScreenProps) {
           <div className="flex items-center justify-center gap-3 mb-8">
             {[
               { icon: Zap, label: "Pomodoro" },
-              { icon: Music, label: "Spotify" },
-              { icon: Headphones, label: "Focus" },
+              { icon: Brain, label: "Focus AI" },
+              { icon: Headphones, label: "Music" },
             ].map(({ icon: Icon, label }, i) => (
               <motion.div
                 key={label}
@@ -109,66 +86,68 @@ export default function AuthScreen({ onEnter }: AuthScreenProps) {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/40"
               >
                 <Icon size={11} />
-                <span className="text-[9px] uppercase tracking-[0.15em] font-medium">
-                  {label}
-                </span>
+                <span className="text-[9px] uppercase tracking-[0.15em] font-medium">{label}</span>
               </motion.div>
             ))}
           </div>
 
-          {/* Login Button */}
+          {/* Error */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300/80 text-[10px] uppercase tracking-[0.1em] text-center"
+            >
+              {error}
+            </motion.div>
+          )}
+
+          {/* Google Login Button */}
           <motion.button
-            onClick={handleLogin}
+            onClick={onLogin}
             disabled={isLoading}
-            className="group relative w-full py-3.5 rounded-2xl font-medium text-[12px] uppercase tracking-[0.25em] overflow-hidden transition-all disabled:opacity-50 disabled:cursor-wait"
+            className="group relative w-full py-4 rounded-2xl font-bold text-[11px] uppercase tracking-[0.3em] overflow-hidden transition-all disabled:opacity-50"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            {/* Button gradient bg */}
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 opacity-90 group-hover:opacity-100 transition-opacity" />
-            {/* Shimmer effect */}
+            {/* 🔵 El gradiente celeste/azul que tenías antes */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#00f2ff] via-[#0ea5e9] to-[#3b82f6] opacity-90 group-hover:opacity-100 transition-opacity" />
+            
+            {/* Efecto de brillo que pasa de largo */}
             <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
               animate={{ x: ["-100%", "100%"] }}
               transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
             />
-            {/* Button content */}
-            <span className="relative z-10 flex items-center justify-center gap-2.5 text-white">
-              {isLoading ? (
-                <motion.div
-                  className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                />
-              ) : (
-                <>
-                  {/* Spotify icon (SVG inline for precision) */}
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 opacity-80">
-                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
-                  </svg>
-                  Entrar al Estudio
-                </>
-              )}
+
+            <span className="relative z-10 flex items-center justify-center gap-3 text-white drop-shadow-md">
+              {/* Icono de Google (Podés usar un SVG de Google aquí) */}
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
+                <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              Iniciar sesion con google
             </span>
           </motion.button>
 
-          {/* Skip / Demo mode */}
+          {/* Skip */}
           <button
-            onClick={onEnter}
+            onClick={onSkip}
             className="w-full mt-3 py-2.5 text-[10px] uppercase tracking-[0.2em] text-white/20 hover:text-white/40 transition-colors"
           >
             Continuar sin cuenta →
           </button>
         </motion.div>
 
-        {/* Bottom tagline */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1, duration: 1 }}
           className="mt-10 text-[10px] text-white/15 tracking-[0.2em] uppercase text-center max-w-xs"
         >
-          Conectando con tu ecosistema de productividad y música
+          Tu espacio de productividad y música
         </motion.p>
       </div>
     </div>
