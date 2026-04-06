@@ -15,14 +15,16 @@ const EVENT_TYPES: { id: EventType, label: string }[] = [
 interface NewEventFormProps {
   startTime: string;
   endTime: string;
+  isInitialAllDay?: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export function NewEventForm({ startTime, endTime, onClose, onSuccess }: NewEventFormProps) {
+export function NewEventForm({ startTime, endTime, isInitialAllDay = false, onClose, onSuccess }: NewEventFormProps) {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<EventType>('TAREA');
   const [color, setColor] = useState('#3b82f6');
+  const [isAllDayToggle, setIsAllDayToggle] = useState(isInitialAllDay);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const startHour = new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -39,16 +41,31 @@ export function NewEventForm({ startTime, endTime, onClose, onSuccess }: NewEven
       const calendar = await getDefaultCalendar();
       if (!calendar) throw new Error("No defaults found");
 
+      let finalStart = startTime;
+      let finalEnd = endTime;
+
+      if (isAllDayToggle) {
+         // Modify the hours to be 00:00 and 23:59 locally
+         const startLocal = new Date(startTime);
+         startLocal.setHours(0, 0, 0, 0);
+         const endLocal = new Date(startTime);
+         endLocal.setHours(23, 59, 59, 999);
+         
+         // Genera el string correcto si usamos una fecha predeterminada
+         finalStart = startLocal.toISOString();
+         finalEnd = endLocal.toISOString();
+      }
+
       await createEvent({
         calendar_id: calendar.id,
         user_id: session.user.id,
         title: title.trim(),
         description: '',
-        start_time: startTime,
-        end_time: endTime,
+        start_time: finalStart,
+        end_time: finalEnd,
         event_type: type,
         color: color,
-        all_day: false,
+        all_day: isAllDayToggle,
         is_completed: false
       });
       
@@ -80,10 +97,16 @@ export function NewEventForm({ startTime, endTime, onClose, onSuccess }: NewEven
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div>
-              <p className="text-[9px] font-bold tracking-widest text-slate-400 uppercase mb-1.5">Horario Central</p>
-              <div className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-medium text-slate-500 shadow-sm flex items-center justify-between">
+              <p className="text-[9px] font-bold tracking-widest text-slate-400 uppercase mb-1.5 flex justify-between">
+                 <span>Horario Central</span>
+                 <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-600 transition-colors">
+                    <input type="checkbox" checked={isAllDayToggle} onChange={e => setIsAllDayToggle(e.target.checked)} className="accent-cyan-500 w-3 h-3" />
+                    <span>Todo el día</span>
+                 </label>
+              </p>
+              <div className={`px-3 py-2 border rounded-xl text-xs font-medium shadow-sm flex items-center justify-between ${isAllDayToggle ? 'bg-cyan-50 border-cyan-100 text-cyan-700' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
                 <span>{new Date(startTime).toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric'})}</span>
-                <span className="text-slate-800 font-semibold">{startHour} - {endHour}</span>
+                <span className="font-semibold">{isAllDayToggle ? '00:00 - 23:59' : `${startHour} - ${endHour}`}</span>
               </div>
             </div>
 

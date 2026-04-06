@@ -26,7 +26,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   const [currentView, setCurrentView] = useState<CalendarViewType>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedEvent, setSelectedEvent] = useState<ExtendedEvent | null>(null);
-  const [filters, setFilters] = useState<CalendarFilter>({ types: [], hideCompleted: false });
+  const [filters, setFilters] = useState<CalendarFilter>({ disabledTypes: [], hideCompleted: false } as any);
   const [onEventClick, setOnEventClick] = useState<((id: string) => void) | undefined>(undefined);
 
   // Deriva el rango necesario para instanciar el fetch desde useEvents
@@ -51,7 +51,12 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       OTRO: { hex: '#64748b', bgHex: '#f8fafc', iconName: 'Calendar' },      // Tailwind Slate
     };
 
-    return rawEvents.map(e => {
+    let displayEvents = rawEvents;
+    if (filters.disabledTypes && filters.disabledTypes.length > 0) {
+       displayEvents = displayEvents.filter(e => !filters.disabledTypes!.includes(e.event_type));
+    }
+
+    return displayEvents.map(e => {
         const style = PALETTE[e.event_type] || PALETTE.OTRO;
         const colorHex = e.color || style.hex;
         const colorBgHex = e.color ? e.color + '15' : style.bgHex;

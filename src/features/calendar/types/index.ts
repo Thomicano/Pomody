@@ -24,6 +24,6 @@ export interface ExtendedEvent extends EventBase {
 export type CalendarViewType = 'month' | 'week' | 'day';
 
 export interface CalendarFilter {
-  types?: EventType[];
+  disabledTypes?: EventType[];
   hideCompleted?: boolean;
 }

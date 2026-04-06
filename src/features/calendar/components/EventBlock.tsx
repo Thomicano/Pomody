@@ -36,19 +36,17 @@ export const EventBlock: React.FC<EventBlockProps> = React.memo(({ event }) => {
           console.log('Abrir Study Hub para:', event.id);
         }
       }}
-      className={`absolute inset-x-px flex flex-col overflow-hidden rounded-md border-[1.5px] cursor-pointer backdrop-blur-sm transition-shadow duration-200 hover:shadow-md ${event.is_completed ? 'opacity-50 line-through' : 'opacity-100'}`}
+      className={`absolute inset-x-0 flex flex-col overflow-hidden rounded-[8px] border shadow-sm cursor-pointer backdrop-blur-md transition-all duration-200 hover:-translate-y-px hover:shadow-md ${event.is_completed ? 'opacity-50 line-through' : 'opacity-100'}`}
       style={{
         top: `${topPx}px`,
-        height: `${Math.max(heightPx, 24)}px`, // Mínimo garantizado visualmente
+        height: `${Math.max(heightPx, 20)}px`,
         backgroundColor: event.colorBgHex,
         borderColor: event.colorHex,
-        color: event.colorHex,
       }}
     >
-      <div className="flex items-center gap-1.5 px-2 py-1 relative">
-         <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l-md opacity-50" style={{ backgroundColor: event.colorHex }} />
-         <Icon size={12} strokeWidth={2.5} />
-         <span className="text-[10px] sm:text-xs font-semibold leading-tight truncate tracking-wide">
+      <div className="flex items-center gap-1.5 px-2 py-1 relative w-full border-l-2" style={{ borderLeftColor: event.colorHex }}>
+         <Icon size={11} strokeWidth={2.5} style={{ color: event.colorHex }} className="shrink-0" />
+         <span className="text-[11px] font-bold leading-none truncate tracking-wide text-slate-800">
            {event.title}
          </span>
       </div>

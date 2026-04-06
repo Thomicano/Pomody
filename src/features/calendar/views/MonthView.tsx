@@ -1,0 +1,73 @@
+import React, { useMemo } from 'react';
+import { format, startOfMonth, startOfWeek, addDays, isSameMonth, isSameDay } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { useCalendarState } from '../context/CalendarContext';
+import type { EventBase } from '../types';
+
+interface MonthViewProps {
+  events: EventBase[];
+  onDayClick: (date: Date, containerRect: DOMRect, dayEvents: any[]) => void;
+}
+
+export default function MonthView({ events, onDayClick }: MonthViewProps) {
+  const { selectedDate, enrichEvents } = useCalendarState();
+
+  const daysGrid = useMemo(() => {
+    const monthStart = startOfMonth(selectedDate);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    return Array.from({ length: 42 }).map((_, i) => addDays(startDate, i));
+  }, [selectedDate]);
+
+  const enriched = useMemo(() => enrichEvents(events), [events, enrichEvents]);
+
+  return (
+    <div className="flex flex-col h-full bg-white/50 backdrop-blur-lg rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="grid grid-cols-7 border-b border-slate-200 bg-white/80">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="py-2.5 text-center text-[10px] font-bold text-slate-400 tracking-widest uppercase">
+             {format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), i), 'EEEE', { locale: es }).substring(0, 3)}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 grid-rows-6 flex-1">
+        {daysGrid.map((day, i) => {
+          const dayEvents = enriched.filter(e => e.start_time && isSameDay(new Date(e.start_time), day));
+          const isCurrentMonth = isSameMonth(day, selectedDate);
+          const isToday = isSameDay(day, new Date());
+
+          return (
+            <div 
+              key={i}
+              className={`p-2 border-b border-r border-slate-200 last:border-r-0 relative group 
+                         ${!isCurrentMonth ? 'bg-slate-50/50 opacity-60' : 'bg-white/40'}
+                         ${isToday ? 'bg-cyan-50/30' : 'hover:bg-slate-50/80 cursor-pointer'} transition-colors`}
+              onClick={(e) => {
+                 onDayClick(day, e.currentTarget.getBoundingClientRect(), dayEvents);
+              }}
+            >
+               <div className="flex flex-col h-full">
+                 <span className={`self-start inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold transition-all
+                    ${isToday ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-600 group-hover:text-slate-900 group-hover:bg-slate-200/50'}`}>
+                   {format(day, 'd')}
+                 </span>
+                 <div className="mt-auto pt-2 flex flex-wrap gap-1.5 px-0.5">
+                   {dayEvents.slice(0, 4).map(event => (
+                     <div 
+                       key={event.id}
+                       className="w-3 h-3 rounded-full shadow-sm"
+                       style={{ backgroundColor: event.colorHex }}
+                       title={event.title}
+                     />
+                   ))}
+                   {dayEvents.length > 4 && (
+                      <span className="text-[10px] text-slate-400 font-bold ml-0.5 leading-none opacity-80 self-end">+{dayEvents.length - 4}</span>
+                   )}
+                 </div>
+               </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

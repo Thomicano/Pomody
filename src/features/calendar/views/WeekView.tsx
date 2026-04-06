@@ -3,11 +3,12 @@ import { format, addDays, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale'; 
 import { useCalendarState } from '../context/CalendarContext';
 import { EventBlock } from '../components/EventBlock';
-import type { EventBase } from '../types';
+import type { EventBase, ExtendedEvent } from '../types';
+import { isAllDay } from '../utils';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export default function WeekView({ events, onTimeSlotClick }: { events: EventBase[], onTimeSlotClick?: (start: string, end: string) => void }) {
+export default function WeekView({ events, onTimeSlotClick, onOpenPopover }: { events: EventBase[], onTimeSlotClick?: (start: string, end: string) => void, onOpenPopover?: (date: Date, rect: DOMRect, dayEvents: ExtendedEvent[]) => void }) {
   const { currentRange, enrichEvents } = useCalendarState();
 
   const daysOfWeek = useMemo(() => {
@@ -42,6 +43,25 @@ export default function WeekView({ events, onTimeSlotClick }: { events: EventBas
             </div>
           ))}
         </div>
+      </div>
+      
+      {/* CONTENEDOR ALL-DAY STICKY */}
+      <div className="flex border-b border-slate-200 bg-slate-50/50 sticky top-[60px] z-20">
+         <div className="w-[60px] border-r border-slate-200 shrink-0 flex items-center justify-center bg-white/50">
+             <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">All Day</span>
+         </div>
+         <div className="grid grid-cols-7 flex-1">
+             {daysOfWeek.map((day, i) => {
+                 const allDayEvents = enriched.filter(e => e.start_time && isSameDay(new Date(e.start_time), day) && isAllDay(e.start_time, e.end_time));
+                 return (
+                     <div key={i} className="border-r border-slate-200 last:border-0 p-1 flex flex-col gap-1 min-h-[28px]">
+                         {allDayEvents.map(ev => (
+                            <div key={ev.id} className="text-[9px] font-bold px-1.5 py-0.5 rounded border shadow-sm truncate" style={{ backgroundColor: ev.colorBgHex, borderColor: ev.colorHex, color: ev.colorHex }}>{ev.title}</div>
+                         ))}
+                     </div>
+                 );
+             })}
+         </div>
       </div>
 
       {/* BODY: Grilla Vertical Scrollable */}
@@ -78,10 +98,10 @@ export default function WeekView({ events, onTimeSlotClick }: { events: EventBas
 
             {/* Columnas Día por Día */}
             {daysOfWeek.map((day, dayIndex) => {
-              // Filtrado de eventos que caen dentro del día iterado
+              // Filtrado de eventos que caen dentro del día iterado Y NO son all_day
               const dayEvents = enriched.filter(e => {
                 if (!e.start_time) return false;
-                return isSameDay(new Date(e.start_time), day);
+                return isSameDay(new Date(e.start_time), day) && !isAllDay(e.start_time, e.end_time);
               });
 
               return (
@@ -111,66 +131,52 @@ export default function WeekView({ events, onTimeSlotClick }: { events: EventBas
                   {/* EVENTOS RENDERIZADOS CON LÓGICA DE CLUSTERING (GOOGLE CALENDAR STYLE) */}
                   <div className="absolute inset-x-0 top-0 pointer-events-none z-10 w-full">
                     {(() => {
-                      const layouts = dayEvents.map(event => ({ event, width: 100, left: 0 }));
-                      
-                      if (layouts.length > 0) {
-                         let cluster = [layouts[0]];
-                         let clusterEnd = new Date(layouts[0].event.end_time || layouts[0].event.start_time).getTime();
-
-                         const processCluster = (cls: typeof layouts) => {
-                            const cols: typeof layouts[] = [];
-                            for (const item of cls) {
-                               let placed = false;
-                               const start = new Date(item.event.start_time).getTime();
-                               for (let i = 0; i < cols.length; i++) {
-                                  const lastInCol = cols[i][cols[i].length - 1];
-                                  if (new Date(lastInCol.event.end_time || lastInCol.event.start_time).getTime() <= start) {
-                                     cols[i].push(item);
-                                     placed = true; 
-                                     break;
-                                  }
-                               }
-                               if (!placed) cols.push([item]);
-                            }
-                            const numCols = cols.length;
-                            for (let c = 0; c < numCols; c++) {
-                               for (const item of cols[c]) {
-                                  item.width = 100 / numCols;
-                                  item.left = c * (100 / numCols);
-                               }
-                            }
-                         };
-
-                         for (let i = 1; i < layouts.length; i++) {
-                            const item = layouts[i];
-                            const start = new Date(item.event.start_time).getTime();
-                            const end = new Date(item.event.end_time || item.event.start_time).getTime();
-                            if (start < clusterEnd) {
-                               cluster.push(item);
-                               clusterEnd = Math.max(clusterEnd, end);
-                            } else {
-                               processCluster(cluster);
-                               cluster = [item];
-                               clusterEnd = end;
+                      const layouts = dayEvents.map((event, index) => {
+                         // Contar colisiones previas
+                         let overlaps = 0;
+                         for (let j = 0; j < index; j++) {
+                            if (new Date(dayEvents[j].end_time).getTime() > new Date(event.start_time).getTime()) {
+                               overlaps++;
                             }
                          }
-                         processCluster(cluster);
-                      }
+                         
+                         // Limitamos superposiciones visuales para no salirnos de la columna
+                         const maxOverlaps = Math.min(overlaps, 6);
+                         const leftOffset = maxOverlaps * 12; // 12% stagger escalonado
+                         const width = 88; // 88% de ancho base para que sea legible
 
-                      return layouts.map(({ event, width, left }, index) => (
-                        <div 
-                          key={event.id} 
-                          className="pointer-events-auto absolute h-[0px]"
-                          style={{
-                             left: `${left}%`,
-                             width: `${width}%`,
-                             zIndex: 10 + index
-                          }}
-                        >
-                          <EventBlock event={event} />
-                        </div>
-                      ));
-                    })()}
+                         return { event, left: leftOffset, width, zIndex: 10 + index };
+                      });
+
+                     const MAX_STAGGER = 3;
+                     // Solo renderizamos en cascada los que ocupen hasta un 3er nivel
+                     const visibleLayouts = layouts.filter(lyt => (lyt.left / 12) < MAX_STAGGER);
+                     const hasMore = layouts.length > visibleLayouts.length;
+
+                     return (
+                        <>
+                          {visibleLayouts.map(lyt => (
+                             <div 
+                               key={lyt.event.id} 
+                               className="pointer-events-auto absolute h-[0px] transition-all"
+                               style={{ left: `${lyt.left}%`, width: `${lyt.width}%`, zIndex: lyt.zIndex }}
+                             >
+                               <EventBlock event={lyt.event as ExtendedEvent} />
+                             </div>
+                          ))}
+                          {hasMore && (
+                             <div className="absolute inset-x-1 bottom-4 h-6 z-50 pointer-events-auto flex items-center justify-center">
+                                <button 
+                                   onClick={(e) => onOpenPopover?.(day, e.currentTarget.getBoundingClientRect(), dayEvents as ExtendedEvent[])}
+                                   className="px-3 py-1 bg-white/90 backdrop-blur-md shadow-md rounded-full text-xs font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                                >
+                                   +{layouts.length - visibleLayouts.length} más
+                                </button>
+                             </div>
+                          )}
+                        </>
+                     );
+                  })()}
                   </div>
                 </div>
               );

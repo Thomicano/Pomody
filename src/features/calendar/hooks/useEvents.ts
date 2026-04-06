@@ -64,5 +64,21 @@ export function useEvents() {
     }
   }, []);
 
-  return { events, isLoading, error, fetchEvents, addEvent, updateEvent };
+  const deleteEvent = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setEvents(prev => prev.filter(e => e.id !== id));
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error deleting event:', err);
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  return { events, isLoading, error, fetchEvents, addEvent, updateEvent, deleteEvent };
 }
