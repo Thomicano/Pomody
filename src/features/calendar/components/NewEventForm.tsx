@@ -27,8 +27,12 @@ export function NewEventForm({ startTime, endTime, isInitialAllDay = false, onCl
   const [isAllDayToggle, setIsAllDayToggle] = useState(isInitialAllDay);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const startHour = new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const endHour = new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const initialStart = new Date(startTime);
+  const initialEnd = new Date(endTime);
+  const [startDate, setStartDate] = useState(initialStart.toISOString().split('T')[0]);
+  const [startTimeLocal, setStartTimeLocal] = useState(initialStart.toTimeString().substring(0, 5));
+  const [endDate, setEndDate] = useState(initialEnd.toISOString().split('T')[0]);
+  const [endTimeLocal, setEndTimeLocal] = useState(initialEnd.toTimeString().substring(0, 5));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,17 +45,13 @@ export function NewEventForm({ startTime, endTime, isInitialAllDay = false, onCl
       const calendar = await getDefaultCalendar();
       if (!calendar) throw new Error("No defaults found");
 
-      let finalStart = startTime;
-      let finalEnd = endTime;
+      let finalStart = new Date(`${startDate}T${startTimeLocal}:00`).toISOString();
+      let finalEnd = new Date(`${endDate}T${endTimeLocal}:00`).toISOString();
 
       if (isAllDayToggle) {
-         // Modify the hours to be 00:00 and 23:59 locally
-         const startLocal = new Date(startTime);
-         startLocal.setHours(0, 0, 0, 0);
-         const endLocal = new Date(startTime);
-         endLocal.setHours(23, 59, 59, 999);
+         const startLocal = new Date(`${startDate}T00:00:00`);
+         const endLocal = new Date(`${endDate}T23:59:59`);
          
-         // Genera el string correcto si usamos una fecha predeterminada
          finalStart = startLocal.toISOString();
          finalEnd = endLocal.toISOString();
       }
@@ -104,9 +104,27 @@ export function NewEventForm({ startTime, endTime, isInitialAllDay = false, onCl
                     <span>Todo el día</span>
                  </label>
               </p>
-              <div className={`px-3 py-2 border rounded-xl text-xs font-medium shadow-sm flex items-center justify-between ${isAllDayToggle ? 'bg-cyan-50 border-cyan-100 text-cyan-700' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
-                <span>{new Date(startTime).toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric'})}</span>
-                <span className="font-semibold">{isAllDayToggle ? '00:00 - 23:59' : `${startHour} - ${endHour}`}</span>
+              
+              <div className="flex flex-col gap-2">
+                 <div className="flex items-center gap-2">
+                    <input type="date" value={startDate} onChange={e => { 
+                       const newStart = e.target.value;
+                       setStartDate(newStart); 
+                       if (new Date(newStart) > new Date(endDate)) {
+                           setEndDate(newStart);
+                       }
+                    }} className={`flex-1 px-3 py-2 border rounded-xl text-xs font-medium shadow-sm outline-none focus:border-cyan-400 ${isAllDayToggle ? 'bg-cyan-50 border-cyan-100 text-cyan-700' : 'bg-slate-50 border-slate-100 text-slate-500'}`} />
+                    {!isAllDayToggle && (
+                       <input type="time" value={startTimeLocal} onChange={e => setStartTimeLocal(e.target.value)} className="w-24 px-3 py-2 border rounded-xl text-xs font-medium shadow-sm outline-none focus:border-cyan-400 bg-slate-50 border-slate-100 text-slate-500" />
+                    )}
+                 </div>
+                 
+                 {!isAllDayToggle && (
+                    <div className="flex items-center gap-2">
+                       <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="flex-1 px-3 py-2 border rounded-xl text-xs font-medium shadow-sm outline-none focus:border-cyan-400 bg-slate-50 border-slate-100 text-slate-500" />
+                       <input type="time" value={endTimeLocal} onChange={e => setEndTimeLocal(e.target.value)} className="w-24 px-3 py-2 border rounded-xl text-xs font-medium shadow-sm outline-none focus:border-cyan-400 bg-slate-50 border-slate-100 text-slate-500" />
+                    </div>
+                 )}
               </div>
             </div>
 

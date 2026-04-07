@@ -3,6 +3,7 @@ import { format, startOfMonth, startOfWeek, addDays, isSameMonth, isSameDay } fr
 import { es } from 'date-fns/locale';
 import { useCalendarState } from '../context/CalendarContext';
 import type { EventBase } from '../types';
+import { isEventInDay } from '../utils';
 
 interface MonthViewProps {
   events: EventBase[];
@@ -31,7 +32,7 @@ export default function MonthView({ events, onDayClick }: MonthViewProps) {
       </div>
       <div className="grid grid-cols-7 grid-rows-6 flex-1">
         {daysGrid.map((day, i) => {
-          const dayEvents = enriched.filter(e => e.start_time && isSameDay(new Date(e.start_time), day));
+          const dayEvents = enriched.filter(e => e.start_time && e.end_time && isEventInDay(e.start_time, e.end_time, day));
           const isCurrentMonth = isSameMonth(day, selectedDate);
           const isToday = isSameDay(day, new Date());
 
@@ -50,17 +51,23 @@ export default function MonthView({ events, onDayClick }: MonthViewProps) {
                     ${isToday ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-600 group-hover:text-slate-900 group-hover:bg-slate-200/50'}`}>
                    {format(day, 'd')}
                  </span>
-                 <div className="mt-auto pt-2 flex flex-wrap gap-1.5 px-0.5">
-                   {dayEvents.slice(0, 4).map(event => (
-                     <div 
-                       key={event.id}
-                       className="w-3 h-3 rounded-full shadow-sm"
-                       style={{ backgroundColor: event.colorHex }}
-                       title={event.title}
-                     />
+                 <div className="mt-auto pt-2 flex flex-col gap-0.5 px-0.5 pb-0.5 overflow-hidden">
+                   {dayEvents.slice(0, 3).map(event => (
+                      <div 
+                         key={event.id}
+                         className="text-[9px] font-bold px-1.5 py-[3px] rounded shadow-sm truncate w-full flex items-center gap-1 leading-none shrink-0" 
+                         style={{ backgroundColor: event.colorHex, color: '#fff' }}
+                      >
+                         <span className="truncate w-full">{event.title}</span>
+                      </div>
                    ))}
-                   {dayEvents.length > 4 && (
-                      <span className="text-[10px] text-slate-400 font-bold ml-0.5 leading-none opacity-80 self-end">+{dayEvents.length - 4}</span>
+                   {dayEvents.length > 3 && (
+                      <span 
+                         className="text-[9px] text-slate-500 font-bold ml-0.5 leading-none opacity-90 self-start mt-0.5 cursor-pointer hover:text-slate-700 transition-colors"
+                         onClick={(e) => { e.stopPropagation(); onDayClick(day, e.currentTarget.getBoundingClientRect(), dayEvents); }}
+                      >
+                         +{dayEvents.length - 3} más
+                      </span>
                    )}
                  </div>
                </div>

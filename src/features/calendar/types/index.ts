@@ -1,4 +1,4 @@
-export type EventType = 'EXAMEN' | 'TAREA' | 'REPASO' | 'OTRO';
+export type EventType = string;
 
 export interface EventBase {
   id: string;

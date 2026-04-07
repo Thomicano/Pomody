@@ -137,19 +137,26 @@ export default function PremiumOmnibar({ onClose }: { onClose?: () => void } = {
     setFeedback(null);
 
     try {
-      // Try Edge Function first
+      console.log("Calling Edge Function: parse-event...");
+      const contextStr = `Today is ${new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. Current Time: ${new Date().toLocaleTimeString('es-AR')}. Timezone: GMT-3`;
+      
       const { data, error } = await supabase.functions.invoke('parse-event', {
-        body: { input: inputValue,
-          localTime: new Date().toISOString(),
-         }
+        body: { 
+          input: inputValue, 
+          localTime: contextStr 
+        }
       });
       if (data?.success) {
         console.log("¡Evento creado!", data.event);
-        // Aquí podés cerrar el modal o limpiar el input
+        setFeedback({ msg: `🟢 Evento agendado con IA: ${data.event.title}`, type: 'success' });
+        setTimeout(() => {
+           setInputValue('');
+           if (onClose) onClose();
+        }, 1500);
+        return; // Exitoso, salimos
       }
       if (error) throw error;
-
-      setFeedback({ msg: '🟢 Evento agendado con IA', type: 'success' });
+      
     } catch (e) {
       // Fallback to local mock parser
       console.log("⚡ [Omnibar] Usando parser local (fallback)");

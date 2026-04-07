@@ -5,7 +5,6 @@ import { es } from 'date-fns/locale';
 import { X } from 'lucide-react';
 import type { ExtendedEvent } from '../types';
 import { EventBlock } from './EventBlock';
-import { isAllDay } from '../utils';
 
 interface DayFocusPopoverProps {
   date: Date;
@@ -13,9 +12,10 @@ interface DayFocusPopoverProps {
   rect: DOMRect;
   onClose: () => void;
   onNewEvent: () => void;
+  onDeleteEvent?: (id: string) => void;
 }
 
-export function DayFocusPopover({ date, events, rect, onClose, onNewEvent }: DayFocusPopoverProps) {
+export function DayFocusPopover({ date, events, rect, onClose, onNewEvent, onDeleteEvent }: DayFocusPopoverProps) {
   // Ajuste matemático para que no se salga de pantalla (simplificado)
   const isLeft = rect.left > window.innerWidth / 2;
   const popupX = isLeft ? rect.left - 300 : rect.right + 10;
@@ -51,28 +51,21 @@ export function DayFocusPopover({ date, events, rect, onClose, onNewEvent }: Day
              </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar pointer-events-auto">
             {events.length === 0 ? (
                <p className="text-xs text-slate-400 text-center py-6 font-medium">No hay eventos este día</p>
             ) : (
-               events.map(event => {
-                  const allDay = isAllDay(event.start_time, event.end_time);
-                  return (
-                    <div 
-                      key={event.id}
-                      className="relative rounded-xl border border-slate-100 overflow-hidden p-2 flex items-center gap-2 hover:bg-slate-50 transition-colors cursor-pointer"
-                      onClick={() => console.log('Abrir UI de evento:', event.id)}
-                    >
-                       <div className="w-1.5 self-stretch rounded-full" style={{ backgroundColor: event.colorHex }} />
-                       <div className="flex flex-col flex-1 truncate">
-                          <span className="text-xs font-bold text-slate-800 truncate">{event.title}</span>
-                          <span className="text-[10px] font-semibold text-slate-400">
-                             {allDay ? 'Todo el día' : `${new Date(event.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(event.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
-                          </span>
-                       </div>
-                    </div>
-                  );
-               })
+               events.map(event => (
+                 <div key={event.id} className="h-[32px] w-full shrink-0">
+                    <EventBlock 
+                      event={event} 
+                      solidPill={true} 
+                      onDelete={(id) => {
+                         onDeleteEvent?.(id);
+                      }}
+                    />
+                 </div>
+               ))
             )}
           </div>
 

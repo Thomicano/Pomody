@@ -24,7 +24,7 @@ export function EventHubModal({ event, onClose, onStartPomodoro, onDeleteEvent }
           initial={{ scale: 0.95, y: 10 }}
           animate={{ scale: 1, y: 0 }}
           exit={{ scale: 0.95, y: 10 }}
-          className="w-full max-w-sm bg-white/95 backdrop-blur-xl border border-white rounded-[24px] shadow-2xl overflow-hidden"
+          className="w-full max-w-sm max-h-[90vh] flex flex-col bg-white/95 backdrop-blur-xl border border-white rounded-[24px] shadow-2xl relative z-50"
           onClick={e => e.stopPropagation()}
         >
           {/* Header Color Splash */}
@@ -39,11 +39,13 @@ export function EventHubModal({ event, onClose, onStartPomodoro, onDeleteEvent }
             </div>
           </div>
 
-          <div className="px-6 pt-10 pb-6">
-            <div className="flex flex-col gap-1 mb-6">
+          <div className="flex flex-col p-6 overflow-y-auto custom-scrollbar flex-1">
+            <div className="flex items-center gap-2 mb-3 shrink-0">
                <span className="text-[10px] uppercase tracking-[0.2em] font-bold" style={{ color: event.colorHex }}>
                  {event.event_type}
                </span>
+            </div>
+            <div className="flex flex-col gap-1 mb-6">
                <h2 className="text-xl font-bold text-slate-800 leading-tight block">
                  {event.title}
                </h2>
@@ -63,24 +65,23 @@ export function EventHubModal({ event, onClose, onStartPomodoro, onDeleteEvent }
                </button>
             </div>
 
-            <div className="w-full h-px bg-slate-100 mb-4" />
+            <div className="w-full h-px bg-slate-100 mb-4 shrink-0" />
 
-            <div className="flex gap-2">
-               {onDeleteEvent && (
+            {/* ACTION FOOTER - protected from shrinkage and overlapping layers */}
+            <div className="flex gap-2 relative z-50 pointer-events-auto shrink-0 mt-auto">
                  <button 
-                    onClick={() => onDeleteEvent(event.id)}
+                    onClick={() => onDeleteEvent?.(event.id)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-3.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 font-bold tracking-wider text-[10px] uppercase shadow-sm transition-all active:scale-[0.98]"
                  >
                     <Trash2 size={14} />
                     Eliminar
                  </button>
-               )}
                <button 
                   onClick={() => {
                     onStartPomodoro?.(event.id, event.title);
                     onClose();
                   }}
-                  className={`${onDeleteEvent ? 'flex-[2]' : 'w-full'} flex items-center justify-center gap-2 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold tracking-widest text-xs uppercase shadow-md transition-all active:scale-[0.98]`}
+                  className="flex-[2] flex items-center justify-center gap-2 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold tracking-widest text-xs uppercase shadow-md transition-all active:scale-[0.98]"
                >
                   <Play size={14} className="fill-white" />
                   Iniciar Pomodoro

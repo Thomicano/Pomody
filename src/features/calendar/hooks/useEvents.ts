@@ -1,11 +1,62 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import type { EventBase, ExtendedEvent } from '../types';
 
+export interface CustomCategory {
+  id: string;
+  name: string;
+  color_hex: string;
+}
+
 export function useEvents() {
   const [events, setEvents] = useState<EventBase[]>([]);
+  const [categories, setCategories] = useState<CustomCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data, error } = await supabase
+        .from('custom_categories')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: true });
+        
+      if (error) {
+        // If table doesn't exist yet, we catch it silently as we just deployed the migration file for the user to run
+        console.warn('Could not fetch categories (table might not exist yet):', error);
+        return;
+      }
+      setCategories(data as CustomCategory[]);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const addCategory = async (name: string, colorHex: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("No session");
+      const { data, error } = await supabase.from('custom_categories').insert({
+        user_id: session.user.id,
+        name,
+        color_hex: colorHex
+      }).select().single();
+      
+      if (error) throw error;
+      setCategories(prev => [...prev, data]);
+      return data;
+    } catch (e: any) {
+      console.error('Add Category Error:', e);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const fetchEvents = useCallback(async (startDate: Date, endDate: Date) => {
     setIsLoading(true);
@@ -80,5 +131,5 @@ export function useEvents() {
     }
   }, []);
 
-  return { events, isLoading, error, fetchEvents, addEvent, updateEvent, deleteEvent };
+  return { events, categories, isLoading, error, fetchEvents, addEvent, updateEvent, deleteEvent, addCategory, fetchCategories };
 }

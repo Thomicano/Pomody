@@ -25,8 +25,9 @@ Deno.serve(async (req) => {
         messages: [
           { 
             role: "system", 
-            content: `Hoy es ${localTime}. Extrae un JSON de la entrada del usuario. 
-            Responde ÚNICAMENTE el JSON: {"title": "string", "start": "ISO_DATETIME", "type": "EXAMEN" | "TAREA"}` 
+            content: `Current Context: ${localTime}. 
+            Calcula las fechas relativas (mañana, el jueves, etc.) basándote estrictamente en este contexto y devuelve un JSON válido.
+            Responde ÚNICAMENTE el JSON sin Markdown extra: {"title": "string", "start": "ISO_DATETIME", "type": "EXAMEN" | "TAREA"}` 
           },
           { role: "user", content: input }
         ],

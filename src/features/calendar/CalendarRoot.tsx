@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CalendarProvider, useCalendarState } from './context/CalendarContext';
 import WeekView from './views/WeekView';
 import MonthView from './views/MonthView';
@@ -8,15 +8,38 @@ import { useEvents } from './hooks/useEvents';
 import { EventHubModal } from './components/EventHubModal';
 import { NewEventForm } from './components/NewEventForm';
 import type { ExtendedEvent } from './types';
-import { Sparkles, Filter, Calendar as CalendarIcon, Plus, X, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
-import { addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, format } from 'date-fns';
+import { Sparkles, Filter, Calendar as CalendarIcon, Plus, X, Tag, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, format, addMinutes, roundToNearestMinutes, startOfDay, differenceInMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { DndContext, useSensor, useSensors, PointerSensor, DragOverlay, defaultDropAnimationSideEffects } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { EventBlock } from './components/EventBlock';
+
+const SYSTEM_CATEGORIES = [
+  { id: 'TAREA', label: 'Tareas', colorHex: '#3b82f6' },
+  { id: 'EXAMEN', label: 'Exámenes', colorHex: '#ef4444' },
+  { id: 'REPASO', label: 'Repasos', colorHex: '#10b981' },
+];
 
 function CalendarOrchestrator({ onClose, onEventClick }: { onClose?: () => void, onEventClick?: (id: string) => void }) {
-  const { currentView, setCurrentView, currentRange, selectedDate, setSelectedDate, setOnEventClick, selectedEvent, setSelectedEvent, filters, setFilters } = useCalendarState();
-  const { fetchEvents, isLoading, events, deleteEvent } = useEvents();
+  const { currentView, setCurrentView, currentRange, selectedDate, setSelectedDate, setOnEventClick, selectedEvent, setSelectedEvent, filters, setFilters, enrichEvents } = useCalendarState();
+  const { fetchEvents, isLoading, events, categories, deleteEvent, addCategory, updateEvent } = useEvents();
   const [newEventSlot, setNewEventSlot] = useState<{ start: string; end: string; isAllDay?: boolean } | null>(null);
   const [dayPopover, setDayPopover] = useState<{ date: Date; rect: DOMRect; events: ExtendedEvent[] } | null>(null);
+
+  // Drag & Drop
+  const [activeDragEvent, setActiveDragEvent] = useState<ExtendedEvent | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  // New Category State
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatColor, setNewCatColor] = useState('#8b5cf6'); // Default purple
+  
+  const allCategories = [
+    ...SYSTEM_CATEGORIES,
+    ...categories.map(c => ({ id: c.name, label: c.name, colorHex: c.color_hex }))
+  ];
 
   useEffect(() => {
     // Escucha pasivamente el estado global de rangos calculado en Context y delega la responsabilidad al Hook DB
@@ -24,17 +47,74 @@ function CalendarOrchestrator({ onClose, onEventClick }: { onClose?: () => void,
   }, [currentRange.start, currentRange.end, fetchEvents]);
 
   useEffect(() => {
-    // Si hay un onEventClick global inyectado (ej para EventWorkspace), úsalo. Si no, usa nuestro HUB Modal
     if (onEventClick) {
          setOnEventClick(() => onEventClick);
     } else {
-         setOnEventClick(() => () => {
-             // Let calendar context manage it if needed
-         });
+         setOnEventClick(() => () => {});
     }
   }, [onEventClick, setOnEventClick]);
 
+  // FIX: Pre-filtrar estrictamente eventos garantizando que no se filtren crudos a las vistas si la categoría está inactiva.
+  const filteredEventsForGrid = useMemo(() => {
+     return events.filter(e => {
+        const dt = filters.disabledTypes || [];
+        if (dt.includes(e.event_type)) return false;
+        
+        // Match permisivo por si el event_type guardó el label crudo en vez del ID
+        const cat = allCategories.find(c => c.id === e.event_type || c.label === e.event_type);
+        if (cat && dt.includes(cat.id)) return false;
+        
+        return true;
+     });
+  }, [events, filters.disabledTypes, allCategories]);
+
+  const handleDragStart = (e: any) => {
+     const draggingEvent = enrichEvents(events).find(ev => ev.id === e.active.id);
+     if (draggingEvent) setActiveDragEvent(draggingEvent);
+     setDayPopover(null); // Fix: close the popover whenever the user drags anything
+  };
+
+  const handleDragEnd = async (e: DragEndEvent) => {
+     setActiveDragEvent(null);
+     const { active, over } = e;
+     if (!over || !active) return;
+     
+     // El over.id debería contener un date ISO del DayColumn, o algo que lo identifique.
+     // DayColumn expondrá useDroppable con id={format(day, 'yyyy-MM-dd')}
+     const targetDayIso = String(over.id);
+     
+     const eventToUpdate = events.find(ev => ev.id === active.id);
+     if (!eventToUpdate) return;
+     
+     const origStart = new Date(eventToUpdate.start_time);
+     const origEnd = new Date(eventToUpdate.end_time);
+     const durationMin = differenceInMinutes(origEnd, origStart);
+     
+     // Extraer las coordenadas Y del drop para mapear a la hora sin descarte
+     const transform = e.delta; // pixel change on Y. Each hour = 60px -> 1px = 1min
+     const newStartMs = new Date(origStart.getTime() + transform.y * 60000);
+     
+     // FIX: Parsear sin zona horaria destructiva. Evita reset de horas y desfase de dias a fin de mes.
+     const dropDateParts = targetDayIso.split('-');
+     if (dropDateParts.length === 3) {
+        newStartMs.setFullYear(Number(dropDateParts[0]), Number(dropDateParts[1]) - 1, Number(dropDateParts[2]));
+     }
+     
+     // Snap-To-Grid (Round to nearest 15 mins)
+     const snappedStart = roundToNearestMinutes(newStartMs, { nearestTo: 15 });
+     const snappedEnd = addMinutes(snappedStart, durationMin);
+     
+     // Update via hook
+     await updateEvent(eventToUpdate.id, {
+        start_time: snappedStart.toISOString(),
+        end_time: snappedEnd.toISOString()
+     });
+     
+     fetchEvents(currentRange.start, currentRange.end); // optimistic refresh
+  };
+
   return (
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
     <div className="flex h-[88vh] w-full max-w-[1400px] mx-auto bg-slate-50/50 backdrop-blur-xl border border-white/60 rounded-[32px] shadow-[0_8px_40px_rgba(0,0,0,0.06)] overflow-hidden mt-6 relative z-10 pointer-events-auto">
       
       {/* SIDEBAR (Panel Control / IA) */}
@@ -53,8 +133,21 @@ function CalendarOrchestrator({ onClose, onEventClick }: { onClose?: () => void,
             }}
             className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl shadow-md transition-colors text-xs font-medium tracking-wide"
           >
-            <Plus size={14} />
-            Nuevo Bloque
+            <Sparkles size={14} />
+            Nuevo Bloque (AI)
+          </button>
+          
+          <button 
+             onClick={() => {
+                const now = new Date();
+                const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0);
+                const end = new Date(start.getTime() + 60 * 60 * 1000); // +1 Hour
+                setNewEventSlot({ start: start.toISOString(), end: end.toISOString() });
+             }}
+             className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 mt-3 px-4 py-2.5 rounded-xl shadow-sm transition-colors text-xs font-medium tracking-wide"
+          >
+             <Plus size={14} />
+             Crear Evento
           </button>
         </div>
 
@@ -94,34 +187,72 @@ function CalendarOrchestrator({ onClose, onEventClick }: { onClose?: () => void,
           </div>
 
           <div>
-            <h3 className="text-[10px] uppercase tracking-[0.2em] font-semibold text-slate-400 mb-3 flex items-center gap-1.5">
-              <Tag size={12} />
-              Categorías Activas
-            </h3>
+            <div className="flex items-center justify-between mb-3 relative">
+               <h3 className="text-[10px] uppercase tracking-[0.2em] font-semibold text-slate-400 flex items-center gap-1.5">
+                 <Tag size={12} />
+                 Categorías Activas
+               </h3>
+               <button onClick={() => setIsAddingCategory(prev => !prev)} className="p-1 hover:bg-slate-200 text-slate-500 rounded-md transition-colors" title="Añadir Categoría">
+                 <Plus size={12} strokeWidth={3} />
+               </button>
+
+               {/* Popover Crear Categoría */}
+               {isAddingCategory && (
+                 <div className="absolute top-full right-0 mt-1 w-48 bg-white border border-slate-200 shadow-xl rounded-xl p-3 z-50">
+                    <div className="flex items-center justify-between mb-2">
+                       <span className="text-xs font-bold text-slate-700">Nueva Categoría</span>
+                       <button onClick={() => setIsAddingCategory(false)} className="text-slate-400 hover:text-slate-600"><X size={12}/></button>
+                    </div>
+                    <input autoFocus value={newCatName} onChange={e => setNewCatName(e.target.value)} type="text" placeholder="Ej: Tesis" className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md mb-2 outline-none focus:border-cyan-400 font-medium" />
+                    <div className="flex gap-1.5 mb-3 flex-wrap">
+                       {['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#f43f5e'].map(color => (
+                          <button key={color} onClick={() => setNewCatColor(color)} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-transform hover:scale-110 ${newCatColor === color ? 'border-slate-800' : 'border-transparent'}`} style={{ backgroundColor: color }}>
+                             {newCatColor === color && <div className="w-1.5 h-1.5 bg-white rounded-full opacity-80"/>}
+                          </button>
+                       ))}
+                    </div>
+                    <button 
+                       onClick={async () => {
+                          if (newCatName.trim()) {
+                             const res = await addCategory(newCatName.trim(), newCatColor);
+                             if (res) setIsAddingCategory(false);
+                             setNewCatName('');
+                          }
+                       }}
+                       disabled={!newCatName.trim()}
+                       className="w-full bg-slate-800 text-white text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md disabled:opacity-50"
+                    >
+                       Añadir
+                    </button>
+                 </div>
+               )}
+            </div>
+            
             <ul className="space-y-1">
-              {(
-                [
-                  { id: 'TAREA', label: 'Tareas', color: 'bg-blue-500' },
-                  { id: 'EXAMEN', label: 'Exámenes', color: 'bg-red-500' },
-                  { id: 'REPASO', label: 'Repasos', color: 'bg-emerald-500' },
-                  { id: 'OTRO', label: 'Otros', color: 'bg-slate-500' }
-                ] as const
-              ).map((v) => {
+              {allCategories.map((v) => {
                  const isDisabled = filters.disabledTypes?.includes(v.id);
+                 const count = events.filter(e => e.event_type === v.id || e.event_type === v.label).length; // match enum or un-strict custom label
                  return (
                    <li key={v.id}>
                      <button 
                        onClick={() => {
                           const dt = filters.disabledTypes || [];
                           if (isDisabled) {
-                             setFilters({ ...filters, disabledTypes: dt.filter(type => type !== v.id as any) });
+                             setFilters({ ...filters, disabledTypes: dt.filter(type => type !== v.id) });
                           } else {
-                             setFilters({ ...filters, disabledTypes: [...dt, v.id as any] });
+                             setFilters({ ...filters, disabledTypes: [...dt, v.id] });
                           }
                        }}
-                       className={`w-full flex items-center gap-2 text-left text-xs font-medium px-3 py-2 rounded-lg transition-colors ${!isDisabled ? 'text-slate-700 hover:bg-slate-100/50' : 'text-slate-400 hover:bg-slate-50'}`}>
-                       <div className={`w-2 h-2 rounded-full ${isDisabled ? 'bg-slate-300' : v.color}`} />
-                       <span className={isDisabled ? 'line-through opacity-60' : ''}>{v.label}</span>
+                       className={`w-full flex items-center justify-between text-left text-xs font-medium px-3 py-2 rounded-lg transition-colors group ${!isDisabled ? 'text-slate-700 hover:bg-slate-100/50' : 'text-slate-400 hover:bg-slate-50'}`}>
+                       
+                       <div className={`flex items-center gap-2 overflow-hidden ${isDisabled ? 'opacity-40' : ''}`}>
+                          <div className="w-2 h-2 shrink-0 rounded-full transition-colors" style={{ backgroundColor: isDisabled ? '#cbd5e1' : v.colorHex }} />
+                          <span className={`truncate ${isDisabled ? 'line-through' : ''}`}>{v.label}</span>
+                       </div>
+                       
+                       <span className={`text-[10px] font-bold py-0.5 px-1.5 rounded-full transition-colors ${!isDisabled ? 'bg-slate-100 text-slate-500 group-hover:bg-white group-hover:shadow-sm' : 'bg-transparent text-slate-300'}`}>
+                          {count}
+                       </span>
                      </button>
                    </li>
                  );
@@ -196,21 +327,23 @@ function CalendarOrchestrator({ onClose, onEventClick }: { onClose?: () => void,
         <section className="flex-1 p-4 pb-0 overflow-hidden relative">
           {currentView === 'week' && (
              <WeekView 
-                events={events} 
+                events={filteredEventsForGrid} 
                 onTimeSlotClick={(start, end) => setNewEventSlot({ start, end })} 
+                onDeleteEvent={async (id) => await deleteEvent(id)}
                 onOpenPopover={(date, rect, dayEvents) => setDayPopover({ date, rect, events: dayEvents })}
              />
           )}
           {currentView === 'month' && (
              <MonthView 
-                events={events}
+                events={filteredEventsForGrid}
                 onDayClick={(date, rect, dayEvents) => setDayPopover({ date, rect, events: dayEvents })} 
              />
           )}
           {currentView === 'day' && (
              <DayView 
-                events={events} 
+                events={filteredEventsForGrid} 
                 onTimeSlotClick={(start, end) => setNewEventSlot({ start, end })} 
+                onDeleteEvent={async (id) => await deleteEvent(id)}
                 onOpenPopover={(date, rect, dayEvents) => setDayPopover({ date, rect, events: dayEvents })}
              />
           )}
@@ -261,10 +394,24 @@ function CalendarOrchestrator({ onClose, onEventClick }: { onClose?: () => void,
                 const end = new Date(dayPopover.date); end.setHours(23,59,59,999);
                 setNewEventSlot({ start: start.toISOString(), end: end.toISOString(), isAllDay: true });
              }}
+             onDeleteEvent={(id) => {
+                deleteEvent(id);
+                // Si preferimos conservar el popover abierto podemos no cerrarlo, la UI del calendario es reactiva
+             }}
           />
         )}
+        {/* DRAG OVERLAY GHOST */}
+        <DragOverlay dropAnimation={defaultDropAnimationSideEffects({ duration: 50 })}>
+           {activeDragEvent ? (
+              <div className="pointer-events-none opacity-50 shrink-0 select-none overflow-hidden h-[28px] w-full max-w-[200px]" style={{ transform: 'none' }}>
+                 <EventBlock event={activeDragEvent} solidPill={true} />
+              </div>
+           ) : null}
+        </DragOverlay>
+
       </main>
     </div>
+    </DndContext>
   );
 }
 
