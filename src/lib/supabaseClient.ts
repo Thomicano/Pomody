@@ -25,10 +25,11 @@ export interface PomodyEvent {
   description: string;
   start_time: string;
   end_time: string;
-  event_type: EventType;
+  event_type: string;
   color: string | null;
   all_day: boolean;
   is_completed: boolean;
+
   created_at: string;
 }
 

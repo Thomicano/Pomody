@@ -7,8 +7,9 @@ import {
   getDefaultCalendar,
   createTask,
   type EventType,
-  EVENT_TYPE_COLORS,
 } from '@/lib/supabaseClient';
+import { extractSubjectHintFromSpanish } from '@/features/calendar/utils/extractSubjectHint';
+import { fetchCustomCategoriesForUser, findOrCreateCategoryBySubject } from '@/features/calendar/utils/omnibarCategories';
 
 // ═══════════════════════════════════════════════════════════
 // MOCK AI PARSER — Fallback local cuando la Edge Function falla
@@ -26,13 +27,11 @@ function parseInputFromText(input: string): ParsedInput | null {
   const now = new Date();
   const text = input.trim().toLowerCase();
 
-  // Detect event type
   let eventType: EventType = "OTRO";
   if (/parcial|examen|final|quiz/i.test(input)) eventType = "EXAMEN";
   else if (/tp |tarea|entrega|trabajo/i.test(input)) eventType = "TAREA";
   else if (/repaso|estudiar|práctica|practica|revisar/i.test(input)) eventType = "REPASO";
 
-  // Extract time — patterns: "a las 15", "15:00", "14hs", "a las 9:30"
   let hour = 9, minute = 0;
   let hasExplicitTime = false;
   const timeMatch = text.match(/(?:a las?\s*)?(\d{1,2})(?::(\d{2}))?\s*(?:hs?)?/);
@@ -40,10 +39,9 @@ function parseInputFromText(input: string): ParsedInput | null {
     hasExplicitTime = true;
     hour = parseInt(timeMatch[1]);
     minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
-    if (hour < 6) hour += 12; // Assume PM for low hours
+    if (hour < 6) hour += 12;
   }
 
-  // Extract date — patterns: "mañana", "lunes", "martes", day number
   let targetDate = new Date(now);
 
   if (/mañana/.test(text)) {
@@ -65,7 +63,6 @@ function parseInputFromText(input: string): ParsedInput | null {
       }
     }
 
-    // Check for specific day number: "el 15", "día 20"
     const dayNumMatch = text.match(/(?:el|día|dia)\s+(\d{1,2})/);
     if (dayNumMatch) {
       const day = parseInt(dayNumMatch[1]);
@@ -74,12 +71,10 @@ function parseInputFromText(input: string): ParsedInput | null {
     }
   }
 
-  // Build ISO dates
   targetDate.setHours(hour, minute, 0, 0);
   const startTime = targetDate.toISOString();
-  const endTime = new Date(targetDate.getTime() + 60 * 60 * 1000).toISOString(); // +1 hour default
+  const endTime = new Date(targetDate.getTime() + 60 * 60 * 1000).toISOString();
 
-  // Build title — use original input cleaned up
   const title = input.trim()
     .replace(/\b(?:mañana|hoy|pasado mañana|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)\b/gi, "")
     .replace(/\b(?:a las?|el|día|dia)\b/gi, "")
@@ -89,10 +84,6 @@ function parseInputFromText(input: string): ParsedInput | null {
 
   return { title, start_time: startTime, end_time: endTime, event_type: eventType, isTask: !hasExplicitTime };
 }
-
-// ═══════════════════════════════════════════════════════════
-// COMPONENT
-// ═══════════════════════════════════════════════════════════
 
 export default function PremiumOmnibar({ onClose }: { onClose?: () => void } = {}) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -114,7 +105,6 @@ export default function PremiumOmnibar({ onClose }: { onClose?: () => void } = {
     };
     window.addEventListener('keydown', handleKeyDown);
 
-    // Custom browser event for UI triggers
     const handleFocusOmnibar = () => {
       setTimeout(() => {
         inputRef.current?.focus();
@@ -128,7 +118,7 @@ export default function PremiumOmnibar({ onClose }: { onClose?: () => void } = {
       window.removeEventListener('focus-omnibar', handleFocusOmnibar);
       window.removeEventListener('open-omnibar', handleFocusOmnibar);
     };
-  }, [isFocused]);
+  }, [isFocused, onClose]);
 
   const handleSubmit = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -136,79 +126,87 @@ export default function PremiumOmnibar({ onClose }: { onClose?: () => void } = {
     setIsLoading(true);
     setFeedback(null);
 
-    try {
-      console.log("Calling Edge Function: parse-event...");
-      const contextStr = `Today is ${new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. Current Time: ${new Date().toLocaleTimeString('es-AR')}. Timezone: GMT-3`;
-      
-      const { data, error } = await supabase.functions.invoke('parse-event', {
-        body: { 
-          input: inputValue, 
-          localTime: contextStr 
-        }
+    const runLocalFallback = async () => {
+      console.log("⚡ [Omnibar] Parser local (fallback)");
+      const parsed = parseInputFromText(inputValue);
+      if (!parsed) throw new Error("No se pudo interpretar el evento");
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("No authenticated");
+
+      if (parsed.isTask) {
+        const created = await createTask({
+          user_id: session.user.id,
+          title: parsed.title,
+          is_completed: false,
+        });
+        if (!created) throw new Error("Insert task failed");
+        setFeedback({ msg: `🟢 Tarea agregada: ${parsed.title}`, type: 'success' });
+        window.dispatchEvent(new Event("pomodyDataUpdate"));
+        return;
+      }
+
+      const calendar = await getDefaultCalendar();
+      if (!calendar) throw new Error("No default calendar");
+
+      const hint = extractSubjectHintFromSpanish(inputValue);
+      let category_id: string | null = null;
+      if (hint) {
+        const existing = await fetchCustomCategoriesForUser();
+        const resolved = await findOrCreateCategoryBySubject(hint, existing);
+        if (resolved) category_id = resolved.id;
+      }
+
+      const created = await createEvent({
+        title: parsed.title,
+        start_time: parsed.start_time,
+        end_time: parsed.end_time,
+        event_type: category_id || parsed.event_type || 'OTRO',
+        calendar_id: calendar.id,
+        user_id: session.user.id,
+        description: '',
+        color: null,
+        all_day: false,
+        is_completed: false,
       });
-      if (data?.success) {
-        console.log("¡Evento creado!", data.event);
-        setFeedback({ msg: `🟢 Evento agendado con IA: ${data.event.title}`, type: 'success' });
-        setTimeout(() => {
-           setInputValue('');
-           if (onClose) onClose();
-        }, 1500);
-        return; // Exitoso, salimos
-      }
-      if (error) throw error;
-      
-    } catch (e) {
-      // Fallback to local mock parser
-      console.log("⚡ [Omnibar] Usando parser local (fallback)");
 
+
+      if (!created) throw new Error("Insert event failed");
+      setFeedback({ msg: `🟢 Evento agendado: ${parsed.title}`, type: 'success' });
+      window.dispatchEvent(new Event("pomodyDataUpdate"));
+    };
+
+    try {
       try {
-        const parsed = parseInputFromText(inputValue);
-        if (!parsed) throw new Error("No se pudo interpretar el evento");
+        const contextStr = `Today is ${new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. Current Time: ${new Date().toLocaleTimeString('es-AR')}. Timezone: GMT-3`;
 
-        // Get user session
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) throw new Error("No authenticated");
-
-        if (parsed.isTask) {
-          const created = await createTask({
-            user_id: session.user.id,
-            title: parsed.title,
-            is_completed: false,
-          });
-          if (created) {
-            setFeedback({ msg: `🟢 Tarea agregada: ${parsed.title}`, type: 'success' });
-            window.dispatchEvent(new Event("pomodyDataUpdate"));
+        const { data, error } = await supabase.functions.invoke('parse-event', {
+          body: {
+            input: inputValue,
+            localTime: contextStr
           }
-          else throw new Error("Insert task failed");
-        } else {
-          // Get default calendar
-          const calendar = await getDefaultCalendar();
-          if (!calendar) throw new Error("No default calendar");
-
-          const created = await createEvent({
-            ...parsed,
-            calendar_id: calendar.id,
-            user_id: session.user.id,
-            description: '',
-            color: EVENT_TYPE_COLORS[parsed.event_type],
-            all_day: false,
-            is_completed: false,
-          });
-
-          if (created) {
-            setFeedback({ msg: `🟢 Evento agendado: ${parsed.title}`, type: 'success' });
-            window.dispatchEvent(new Event("pomodyDataUpdate"));
-          }
-          else throw new Error("Insert event failed");
+        });
+        if (data?.success) {
+          setFeedback({ msg: `🟢 Evento agendado con IA: ${data.event?.title ?? ''}`, type: 'success' });
+          window.dispatchEvent(new Event("pomodyDataUpdate"));
+          setInputValue('');
+          setTimeout(() => setFeedback(null), 3500);
+          return;
         }
-      } catch (localErr: any) {
-        setFeedback({ msg: `Error: ${localErr.message?.substring(0, 30)}`, type: 'error' });
+        if (error) console.warn('[Omnibar] Edge function:', error);
+      } catch (err) {
+        console.warn('[Omnibar] Edge invoke failed, usando parser local', err);
       }
+
+      await runLocalFallback();
+      setInputValue('');
+    } catch (localErr: any) {
+      setFeedback({ msg: `Error: ${localErr.message?.substring(0, 80)}`, type: 'error' });
+    } finally {
+      setIsLoading(false);
     }
 
-    setInputValue('');
     setTimeout(() => setFeedback(null), 3500);
-    setIsLoading(false);
   };
 
   return (
@@ -249,7 +247,7 @@ export default function PremiumOmnibar({ onClose }: { onClose?: () => void } = {
           className="relative z-10 flex items-center gap-1 opacity-50 ml-3 pointer-events-none"
         >
           <kbd className="font-sans px-2 py-0.5 text-[10px] text-white/60 bg-white/10 rounded-md border border-white/10">
-            {navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl'}
+            {typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl'}
           </kbd>
           <kbd className="font-sans px-2 py-0.5 text-[10px] text-white/60 bg-white/10 rounded-md border border-white/10">
             K

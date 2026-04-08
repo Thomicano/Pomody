@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useCalendarState } from '../context/CalendarContext';
 import type { EventBase, ExtendedEvent } from '../types';
 import { CalendarGrid } from '../components/CalendarGrid';

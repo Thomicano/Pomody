@@ -1,12 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
-import type { EventBase, ExtendedEvent } from '../types';
-
-export interface CustomCategory {
-  id: string;
-  name: string;
-  color_hex: string;
-}
+import type { CustomCategory, EventBase } from '../types';
 
 export function useEvents() {
   const [events, setEvents] = useState<EventBase[]>([]);
@@ -46,13 +40,45 @@ export function useEvents() {
       }).select().single();
       
       if (error) throw error;
-      setCategories(prev => [...prev, data]);
-      return data;
+      setCategories(prev => [...prev, data as CustomCategory]);
+      return data as CustomCategory;
     } catch (e: any) {
       console.error('Add Category Error:', e);
       return null;
     }
   };
+
+  const updateCategory = useCallback(async (id: string, updates: Partial<Pick<CustomCategory, 'name' | 'color_hex'>>) => {
+    try {
+      const { data, error } = await supabase
+        .from('custom_categories')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      setCategories((prev) => prev.map((c) => (c.id === id ? (data as CustomCategory) : c)));
+      return data as CustomCategory;
+    } catch (e: any) {
+      console.error('Update Category Error:', e);
+      return null;
+    }
+  }, []);
+
+  const deleteCategory = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase.from('custom_categories').delete().eq('id', id);
+      if (error) throw error;
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+      setEvents((prev) =>
+        prev.map((e) => (e.category_id === id ? { ...e, category_id: null } : e))
+      );
+      return true;
+    } catch (e: any) {
+      console.error('Delete Category Error:', e);
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     fetchCategories();
@@ -131,5 +157,18 @@ export function useEvents() {
     }
   }, []);
 
-  return { events, categories, isLoading, error, fetchEvents, addEvent, updateEvent, deleteEvent, addCategory, fetchCategories };
+  return {
+    events,
+    categories,
+    isLoading,
+    error,
+    fetchEvents,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    fetchCategories,
+  };
 }

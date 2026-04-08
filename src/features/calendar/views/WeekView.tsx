@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { startOfWeek } from 'date-fns';
 import { useCalendarState } from '../context/CalendarContext';
 import type { EventBase, ExtendedEvent } from '../types';

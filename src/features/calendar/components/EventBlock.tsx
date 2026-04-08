@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { differenceInMinutes, parseISO } from 'date-fns';
 import type { ExtendedEvent } from '../types';
 import { useCalendarState } from '../context/CalendarContext';
 import * as LucideIcons from 'lucide-react';
@@ -14,11 +13,13 @@ interface EventBlockProps {
   solidPill?: boolean;
 }
 
-export const EventBlock: React.FC<EventBlockProps> = React.memo(({ event, compact, onDelete, solidPill }) => {
+export const EventBlock: React.FC<EventBlockProps> = React.memo(({ event, compact: _compact, onDelete, solidPill }) => {
   const { onEventClick } = useCalendarState();
-  
-  // Resolución dinámica de ícono calculada en capa de estado
-  const Icon = (LucideIcons[event.iconName as keyof typeof LucideIcons] as React.ElementType) || LucideIcons.Calendar;
+
+  const Icon = useMemo(
+    () => (LucideIcons[event.iconName as keyof typeof LucideIcons] as React.ElementType) || LucideIcons.Calendar,
+    [event.iconName]
+  );
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: event.id,

@@ -1,5 +1,5 @@
 import type { ExtendedEvent } from '../types';
-import { differenceInMinutes, parseISO } from 'date-fns';
+import { differenceInMinutes } from 'date-fns';
 
 export interface EventCluster {
   id: string;

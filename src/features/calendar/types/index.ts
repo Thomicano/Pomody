@@ -1,5 +1,12 @@
 export type EventType = string;
 
+/** Categoría personalizada en Supabase (`custom_categories`) */
+export interface CustomCategory {
+  id: string;
+  name: string;
+  color_hex: string;
+}
+
 export interface EventBase {
   id: string;
   user_id: string;
@@ -10,8 +17,10 @@ export interface EventBase {
   end_time: string;
   event_type: EventType;
   is_completed: boolean;
-  color?: string; // fallback original field if needed
+  all_day?: boolean;
+
   created_at?: string;
+
 }
 
 export interface ExtendedEvent extends EventBase {
@@ -26,4 +35,6 @@ export type CalendarViewType = 'month' | 'week' | 'day';
 export interface CalendarFilter {
   disabledTypes?: EventType[];
   hideCompleted?: boolean;
+  /** Ocultar filas en la sidebar (como "Hide from list" en Google Calendar) */
+  sidebarHiddenIds?: EventType[];
 }

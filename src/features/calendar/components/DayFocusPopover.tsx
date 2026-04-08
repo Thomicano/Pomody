@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -51,7 +50,7 @@ export function DayFocusPopover({ date, events, rect, onClose, onNewEvent, onDel
              </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar pointer-events-auto">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar pointer-events-auto z-[170]">
             {events.length === 0 ? (
                <p className="text-xs text-slate-400 text-center py-6 font-medium">No hay eventos este día</p>
             ) : (
